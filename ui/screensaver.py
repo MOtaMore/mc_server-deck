@@ -22,6 +22,7 @@ from PyQt6.QtGui import (
 )
 from PyQt6.QtWidgets import QApplication, QWidget
 
+from i18n import t
 from podman_manager import PodmanManager
 
 
@@ -134,11 +135,9 @@ class OledScreensaverWidget(QWidget):
             statuses = self.pm.get_all_statuses()
             srv_st = statuses.get("server", "unknown").upper()
             pod_st = statuses.get("pod", "unknown").upper()
-            self.last_status_text = (
-                f"MC Server-Deck  •  mc-server: {srv_st}  •  mc-pod: {pod_st}  •  (Toca para despertar)"
-            )
+            self.last_status_text = t("screensaver_wake_hud", srv_st=srv_st, pod_st=pod_st)
         except Exception:
-            self.last_status_text = "MC Server-Deck  •  Servidor en Ejecución  •  (Toca para despertar)"
+            self.last_status_text = t("screensaver_wake_hud", srv_st="ONLINE", pod_st="ACTIVO")
 
     def _update_physics(self):
         """Actualiza la posición del icono y rebota contra los límites de la pantalla."""

@@ -1,6 +1,6 @@
 """
 MC Server-Deck - Diálogos Táctiles y Modales
-Componentes emergentes diseñados para pantallas táctiles de 1280x800.
+Componentes emergentes diseñados para pantallas táctiles de 1280x800 con soporte i18n.
 """
 
 from PyQt6.QtCore import Qt
@@ -14,6 +14,8 @@ from PyQt6.QtWidgets import (
     QTextEdit,
     QVBoxLayout,
 )
+
+from i18n import t
 
 
 class TouchInputDialog(QDialog):
@@ -37,7 +39,7 @@ class TouchInputDialog(QDialog):
 
         # Campo de entrada
         self.line_edit = QLineEdit(default_val)
-        self.line_edit.setPlaceholderText("Ejemplo: Steve, Alex...")
+        self.line_edit.setPlaceholderText("Steve, Alex...")
         self.line_edit.setStyleSheet(
             "font-size: 16px; padding: 12px; border-radius: 8px; min-height: 28px;"
         )
@@ -48,14 +50,14 @@ class TouchInputDialog(QDialog):
         btn_layout = QHBoxLayout()
         btn_layout.setSpacing(12)
 
-        self.btn_cancel = QPushButton("Cancelar")
+        self.btn_cancel = QPushButton(t("dlg_cancel"))
         self.btn_cancel.setStyleSheet(
             "background-color: #263345; color: #94a3b8; font-size: 15px; padding: 12px 20px;"
         )
         self.btn_cancel.clicked.connect(self.reject)
         btn_layout.addWidget(self.btn_cancel)
 
-        self.btn_confirm = QPushButton("Confirmar")
+        self.btn_confirm = QPushButton(t("dlg_confirm"))
         self.btn_confirm.setStyleSheet(
             "background-color: #0284c7; color: white; font-weight: 700; font-size: 15px; padding: 12px 24px;"
         )
@@ -76,8 +78,8 @@ class ConfirmDialog(QDialog):
         self,
         title: str,
         message: str,
-        confirm_text: str = "Confirmar",
-        cancel_text: str = "Cancelar",
+        confirm_text: str = "",
+        cancel_text: str = "",
         is_danger: bool = False,
         parent=None,
     ):
@@ -100,12 +102,14 @@ class ConfirmDialog(QDialog):
         btn_layout = QHBoxLayout()
         btn_layout.setSpacing(14)
 
-        btn_cancel = QPushButton(cancel_text)
+        cancel_lbl = cancel_text or t("dlg_cancel")
+        btn_cancel = QPushButton(cancel_lbl)
         btn_cancel.setStyleSheet("background-color: #263345; font-size: 15px; padding: 12px 20px;")
         btn_cancel.clicked.connect(self.reject)
         btn_layout.addWidget(btn_cancel)
 
-        btn_confirm = QPushButton(confirm_text)
+        confirm_lbl = confirm_text or t("dlg_confirm")
+        btn_confirm = QPushButton(confirm_lbl)
         if is_danger:
             btn_confirm.setStyleSheet(
                 "background-color: #dc2626; color: white; font-weight: 700; font-size: 15px; padding: 12px 24px;"
@@ -125,7 +129,7 @@ class DeployProgressDialog(QDialog):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Desplegando Servidor de Minecraft...")
+        self.setWindowTitle(t("dlg_deploy_title"))
         self.setModal(True)
         self.setMinimumSize(600, 380)
 
@@ -134,7 +138,7 @@ class DeployProgressDialog(QDialog):
         layout.setSpacing(14)
 
         # Título descriptivo
-        self.status_title = QLabel("Preparando contenedores en espacio de usuario...")
+        self.status_title = QLabel(t("dlg_deploy_preparing"))
         self.status_title.setStyleSheet("font-size: 16px; font-weight: 700; color: #38bdf8;")
         layout.addWidget(self.status_title)
 
@@ -152,7 +156,7 @@ class DeployProgressDialog(QDialog):
         layout.addWidget(self.log_view)
 
         # Botón de cierre (inicia deshabilitado hasta terminar)
-        self.btn_close = QPushButton("Finalizar")
+        self.btn_close = QPushButton(t("dlg_close"))
         self.btn_close.setEnabled(False)
         self.btn_close.setStyleSheet(
             "background-color: #0284c7; color: white; font-weight: 700; font-size: 15px; padding: 12px 24px;"
@@ -171,10 +175,10 @@ class DeployProgressDialog(QDialog):
         self.progress_bar.setRange(0, 100)
         self.progress_bar.setValue(100)
         if success:
-            self.status_title.setText("✔ Despliegue completado con éxito")
+            self.status_title.setText(t("dlg_deploy_success"))
             self.status_title.setStyleSheet("font-size: 16px; font-weight: 700; color: #34d399;")
         else:
-            self.status_title.setText("✖ Ocurrió un error en el despliegue")
+            self.status_title.setText(t("dlg_deploy_error"))
             self.status_title.setStyleSheet("font-size: 16px; font-weight: 700; color: #f87171;")
 
         self.append_log(f"\n[Resultado]: {final_msg}")

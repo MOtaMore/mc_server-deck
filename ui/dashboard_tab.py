@@ -1,8 +1,10 @@
 """
 MC Server-Deck - Pestaña 1: Panel de Control y Consola en Vivo
 Panel principal con monitoreo en tiempo real, streaming de logs y consola RCON.
+Soporte multilenguaje i18n (ES, EN, PT, FR).
 """
 
+import shutil
 import subprocess
 import time
 from typing import Optional
@@ -22,6 +24,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from i18n import t
 from podman_manager import PodmanManager
 from steam_integrator import SteamIntegrator
 from ui.dialogs import ConfirmDialog, TouchInputDialog
@@ -40,6 +43,12 @@ class LogStreamerThread(QThread):
 
     def run(self):
         while self.is_running:
+            if not shutil.which("podman"):
+                for _ in range(30):
+                    if not self.is_running:
+                        break
+                    self.msleep(100)
+                continue
             try:
                 cmd = ["podman", "logs", "-f", "--tail", "100", self.container_name]
                 self.process = subprocess.Popen(
@@ -66,8 +75,10 @@ class LogStreamerThread(QThread):
                 if self.is_running:
                     self.log_received.emit(f"[MC Server-Deck Logs Error]: {e}")
 
-            # Esperar antes de intentar reconectar si el contenedor no está activo
-            time.sleep(2)
+            for _ in range(20):
+                if not self.is_running:
+                    break
+                self.msleep(100)
 
     def stop(self):
         self.is_running = False
@@ -77,13 +88,14 @@ class LogStreamerThread(QThread):
                 self.process.kill()
             except Exception:
                 pass
-        self.wait(2000)
+        self.quit()
+        self.wait(1500)
 
 
 class WorkerActionThread(QThread):
     """Hilo para ejecutar acciones de Podman en segundo plano sin congelar la GUI."""
 
-    finished_signal = pyqtSignal(bool, str, str)  # success, action_name, output
+    finished_signal = pyqtSignal(bool, str, str)
 
     def __init__(self, action_name: str, target_fn, *args, parent=None):
         super().__init__(parent)
@@ -100,7 +112,7 @@ class WorkerActionThread(QThread):
 
 
 class DashboardTab(QWidget):
-    """Pestaña del Panel de Control y Consola Interactiva."""
+    """Pestaña del Panel de Control y Consola Interactiva con soporte i18n."""
 
     def __init__(self, podman_mgr: PodmanManager, parent=None):
         super().__init__(parent)
@@ -127,34 +139,32 @@ class DashboardTab(QWidget):
         status_layout.setHorizontalSpacing(24)
         status_layout.setVerticalSpacing(6)
 
-        # Labels de título
-        title_pod = QLabel("Pod (Red y Contenedores):")
-        title_pod.setStyleSheet("font-weight: 700; color: #cbd5e1;")
-        self.pill_pod = self._create_status_pill("Comprobando...")
+        self.title_pod = QLabel(t("status_pod_title"))
+        self.title_pod.setStyleSheet("font-weight: 700; color: #cbd5e1;")
+        self.pill_pod = self._create_status_pill(t("status_checking"))
 
-        title_server = QLabel("Servidor Minecraft (itzg):")
-        title_server.setStyleSheet("font-weight: 700; color: #cbd5e1;")
-        self.pill_server = self._create_status_pill("Comprobando...")
+        self.title_server = QLabel(t("status_server_title"))
+        self.title_server.setStyleSheet("font-weight: 700; color: #cbd5e1;")
+        self.pill_server = self._create_status_pill(t("status_checking"))
 
-        title_playit = QLabel("Túnel Playit.gg:")
-        title_playit.setStyleSheet("font-weight: 700; color: #cbd5e1;")
-        self.pill_playit = self._create_status_pill("Comprobando...")
+        self.title_playit = QLabel(t("status_playit_title"))
+        self.title_playit.setStyleSheet("font-weight: 700; color: #cbd5e1;")
+        self.pill_playit = self._create_status_pill(t("status_checking"))
 
-        title_ssh = QLabel("Acceso SFTP / SSH:")
-        title_ssh.setStyleSheet("font-weight: 700; color: #cbd5e1;")
-        self.pill_ssh = self._create_status_pill("Comprobando...")
+        self.title_ssh = QLabel(t("status_ssh_title"))
+        self.title_ssh.setStyleSheet("font-weight: 700; color: #cbd5e1;")
+        self.pill_ssh = self._create_status_pill(t("status_checking"))
 
-        # Disposición en 2 filas x 4 columnas
-        status_layout.addWidget(title_pod, 0, 0)
+        status_layout.addWidget(self.title_pod, 0, 0)
         status_layout.addWidget(self.pill_pod, 0, 1)
 
-        status_layout.addWidget(title_server, 0, 2)
+        status_layout.addWidget(self.title_server, 0, 2)
         status_layout.addWidget(self.pill_server, 0, 3)
 
-        status_layout.addWidget(title_playit, 1, 0)
+        status_layout.addWidget(self.title_playit, 1, 0)
         status_layout.addWidget(self.pill_playit, 1, 1)
 
-        status_layout.addWidget(title_ssh, 1, 2)
+        status_layout.addWidget(self.title_ssh, 1, 2)
         status_layout.addWidget(self.pill_ssh, 1, 3)
 
         main_layout.addWidget(status_card)
@@ -168,23 +178,21 @@ class DashboardTab(QWidget):
         actions_layout.setContentsMargins(12, 10, 12, 10)
         actions_layout.setSpacing(12)
 
-        self.btn_start = QPushButton("▶ Iniciar Servidor")
+        self.btn_start = QPushButton(t("btn_start_server"))
         self.btn_start.setObjectName("BtnStart")
         self.btn_start.clicked.connect(self._on_start_server)
 
-        self.btn_stop = QPushButton("⏹ Detener Servidor")
+        self.btn_stop = QPushButton(t("btn_stop_server"))
         self.btn_stop.setObjectName("BtnStop")
         self.btn_stop.clicked.connect(self._on_stop_server)
 
-        self.btn_restart = QPushButton("🔄 Reiniciar Servidor")
+        self.btn_restart = QPushButton(t("btn_restart_server"))
         self.btn_restart.setObjectName("BtnRestart")
         self.btn_restart.clicked.connect(self._on_restart_server)
 
-        self.btn_fix_perms = QPushButton("🔧 Corregir Permisos")
+        self.btn_fix_perms = QPushButton(t("btn_fix_perms"))
         self.btn_fix_perms.setObjectName("BtnFix")
-        self.btn_fix_perms.setToolTip(
-            "Ejecuta podman unshare chown -R 0:0 y chmod 777 para reparar errores de permisos en /home/deck"
-        )
+        self.btn_fix_perms.setToolTip(t("btn_fix_perms_tooltip"))
         self.btn_fix_perms.clicked.connect(self._on_fix_permissions)
 
         actions_layout.addWidget(self.btn_start, 1)
@@ -203,26 +211,25 @@ class DashboardTab(QWidget):
         console_layout.setContentsMargins(12, 12, 12, 12)
         console_layout.setSpacing(8)
 
-        # Barra superior de la consola
         console_header = QHBoxLayout()
-        console_title = QLabel("🖥 Salida de Consola en Vivo (itzg mc-server)")
-        console_title.setStyleSheet("font-weight: 700; font-size: 14px; color: #38bdf8;")
-        console_header.addWidget(console_title)
+        self.console_title = QLabel(t("console_title"))
+        self.console_title.setStyleSheet("font-weight: 700; font-size: 14px; color: #38bdf8;")
+        console_header.addWidget(self.console_title)
 
         console_header.addStretch()
 
-        self.chk_autoscroll = QCheckBox("Auto-scroll")
+        self.chk_autoscroll = QCheckBox(t("chk_autoscroll"))
         self.chk_autoscroll.setChecked(True)
         console_header.addWidget(self.chk_autoscroll)
 
-        btn_clear = QPushButton("Limpiar Vista")
-        btn_clear.setStyleSheet("font-size: 12px; padding: 4px 12px; min-height: 20px;")
-        btn_clear.clicked.connect(self._clear_console)
-        console_header.addWidget(btn_clear)
+        self.btn_clear = QPushButton(t("btn_clear_console"))
+        self.btn_clear.setStyleSheet("font-size: 12px; padding: 4px 12px; min-height: 20px;")
+        self.btn_clear.clicked.connect(self._clear_console)
+        console_header.addWidget(self.btn_clear)
 
         console_layout.addLayout(console_header)
 
-        # Área de texto de la consola
+        # Área de texto de consola
         self.console_output = QPlainTextEdit()
         self.console_output.setObjectName("ConsoleOutput")
         self.console_output.setReadOnly(True)
@@ -232,27 +239,24 @@ class DashboardTab(QWidget):
         )
         console_layout.addWidget(self.console_output, 1)
 
-        # Barra de envío de comando RCON
+        # Barra de comandos
         cmd_layout = QHBoxLayout()
         cmd_layout.setSpacing(10)
 
         self.cmd_input = QLineEdit()
-        self.cmd_input.setPlaceholderText(
-            "Escribe un comando de Minecraft (ej: list, time set day, weather clear, say ¡Hola!)..."
-        )
+        self.cmd_input.setPlaceholderText(t("console_placeholder"))
         self.cmd_input.returnPressed.connect(self._on_send_command)
         cmd_layout.addWidget(self.cmd_input, 1)
 
-        # Botón para abrir el teclado táctil oficial de Steam Deck
-        self.btn_keyboard = QPushButton("⌨️ Teclado")
+        self.btn_keyboard = QPushButton(t("btn_keyboard"))
         self.btn_keyboard.setStyleSheet(
             "background-color: #1e293b; color: #94a3b8; font-weight: 600; padding: 10px 14px;"
         )
-        self.btn_keyboard.setToolTip("Abre el teclado virtual en pantalla de Steam Deck (o pulsa STEAM + X)")
+        self.btn_keyboard.setToolTip(t("btn_keyboard_tooltip"))
         self.btn_keyboard.clicked.connect(self._open_virtual_keyboard)
         cmd_layout.addWidget(self.btn_keyboard)
 
-        self.btn_send_cmd = QPushButton("Enviar Comando ↵")
+        self.btn_send_cmd = QPushButton(t("btn_send_cmd"))
         self.btn_send_cmd.setStyleSheet(
             "background-color: #0284c7; color: white; font-weight: 700; padding: 10px 18px;"
         )
@@ -267,46 +271,81 @@ class DashboardTab(QWidget):
         quick_btns_layout = QHBoxLayout()
         quick_btns_layout.setSpacing(10)
 
-        btn_op = QPushButton("👑 Hacer OP")
-        btn_op.setToolTip("Otorga permisos de operador a un jugador con 'op <nombre>'")
-        btn_op.clicked.connect(self._quick_op)
+        self.btn_op = QPushButton(t("btn_quick_op"))
+        self.btn_op.setToolTip(t("btn_quick_op_tooltip"))
+        self.btn_op.clicked.connect(self._quick_op)
 
-        btn_wl_java = QPushButton("📋 Whitelist Add (Java)")
-        btn_wl_java.setToolTip("Añade un jugador de Java a la lista blanca")
-        btn_wl_java.clicked.connect(self._quick_whitelist_java)
+        self.btn_wl_java = QPushButton(t("btn_quick_wl_java"))
+        self.btn_wl_java.setToolTip(t("btn_quick_wl_java_tooltip"))
+        self.btn_wl_java.clicked.connect(self._quick_whitelist_java)
 
-        btn_wl_bedrock = QPushButton("🎮 Bedrock Whitelist (Floodgate)")
-        btn_wl_bedrock.setToolTip("Añade un jugador de Bedrock con 'fwhitelist add <Gamertag>'")
-        btn_wl_bedrock.clicked.connect(self._quick_whitelist_bedrock)
+        self.btn_wl_bedrock = QPushButton(t("btn_quick_wl_bedrock"))
+        self.btn_wl_bedrock.setToolTip(t("btn_quick_wl_bedrock_tooltip"))
+        self.btn_wl_bedrock.clicked.connect(self._quick_whitelist_bedrock)
 
-        btn_save = QPushButton("💾 Guardar Mundo")
-        btn_save.setToolTip("Fuerza el guardado de los datos del mundo en disco con 'save-all'")
-        btn_save.clicked.connect(self._quick_save_all)
+        self.btn_save = QPushButton(t("btn_quick_save"))
+        self.btn_save.setToolTip(t("btn_quick_save_tooltip"))
+        self.btn_save.clicked.connect(self._quick_save_all)
 
-        btn_list = QPushButton("👥 Ver Jugadores")
-        btn_list.setToolTip("Muestra los jugadores conectados en la consola con 'list'")
-        btn_list.clicked.connect(lambda: self._dispatch_rcon("list"))
+        self.btn_list = QPushButton(t("btn_quick_list"))
+        self.btn_list.setToolTip(t("btn_quick_list_tooltip"))
+        self.btn_list.clicked.connect(lambda: self._dispatch_rcon("list"))
 
-        btn_oled_quick = QPushButton("🌙 Modo OLED")
-        btn_oled_quick.setStyleSheet(
+        self.btn_oled_quick = QPushButton(t("btn_oled_mode"))
+        self.btn_oled_quick.setStyleSheet(
             "background-color: #0f172a; color: #38bdf8; border: 1px solid #0284c7; font-weight: 700;"
         )
-        btn_oled_quick.setToolTip("Activa el salvapantallas anti-quemado OLED con el icono rebotante")
-        btn_oled_quick.clicked.connect(self._trigger_oled_mode)
+        self.btn_oled_quick.setToolTip(t("btn_oled_tooltip"))
+        self.btn_oled_quick.clicked.connect(self._trigger_oled_mode)
 
-        quick_btns_layout.addWidget(btn_op)
-        quick_btns_layout.addWidget(btn_wl_java)
-        quick_btns_layout.addWidget(btn_wl_bedrock)
-        quick_btns_layout.addWidget(btn_save)
-        quick_btns_layout.addWidget(btn_list)
-        quick_btns_layout.addWidget(btn_oled_quick)
+        quick_btns_layout.addWidget(self.btn_op)
+        quick_btns_layout.addWidget(self.btn_wl_java)
+        quick_btns_layout.addWidget(self.btn_wl_bedrock)
+        quick_btns_layout.addWidget(self.btn_save)
+        quick_btns_layout.addWidget(self.btn_list)
+        quick_btns_layout.addWidget(self.btn_oled_quick)
 
         console_layout.addLayout(quick_btns_layout)
 
         main_layout.addWidget(console_card, 1)
 
+    def retranslate_ui(self):
+        """Actualiza todos los textos de la interfaz según el idioma actual."""
+        self.title_pod.setText(t("status_pod_title"))
+        self.title_server.setText(t("status_server_title"))
+        self.title_playit.setText(t("status_playit_title"))
+        self.title_ssh.setText(t("status_ssh_title"))
+
+        self.btn_start.setText(t("btn_start_server"))
+        self.btn_stop.setText(t("btn_stop_server"))
+        self.btn_restart.setText(t("btn_restart_server"))
+        self.btn_fix_perms.setText(t("btn_fix_perms"))
+        self.btn_fix_perms.setToolTip(t("btn_fix_perms_tooltip"))
+
+        self.console_title.setText(t("console_title"))
+        self.chk_autoscroll.setText(t("chk_autoscroll"))
+        self.btn_clear.setText(t("btn_clear_console"))
+        self.cmd_input.setPlaceholderText(t("console_placeholder"))
+        self.btn_keyboard.setText(t("btn_keyboard"))
+        self.btn_keyboard.setToolTip(t("btn_keyboard_tooltip"))
+        self.btn_send_cmd.setText(t("btn_send_cmd"))
+
+        self.btn_op.setText(t("btn_quick_op"))
+        self.btn_op.setToolTip(t("btn_quick_op_tooltip"))
+        self.btn_wl_java.setText(t("btn_quick_wl_java"))
+        self.btn_wl_java.setToolTip(t("btn_quick_wl_java_tooltip"))
+        self.btn_wl_bedrock.setText(t("btn_quick_wl_bedrock"))
+        self.btn_wl_bedrock.setToolTip(t("btn_quick_wl_bedrock_tooltip"))
+        self.btn_save.setText(t("btn_quick_save"))
+        self.btn_save.setToolTip(t("btn_quick_save_tooltip"))
+        self.btn_list.setText(t("btn_quick_list"))
+        self.btn_list.setToolTip(t("btn_quick_list_tooltip"))
+        self.btn_oled_quick.setText(t("btn_oled_mode"))
+        self.btn_oled_quick.setToolTip(t("btn_oled_tooltip"))
+
+        self._update_statuses()
+
     def _create_status_pill(self, initial_text: str) -> QLabel:
-        """Crea una etiqueta con estilo de píldora de estado."""
         pill = QLabel(initial_text)
         pill.setObjectName("StatusUnknown")
         pill.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -318,14 +357,12 @@ class DashboardTab(QWidget):
     # -------------------------------------------------------------------------
 
     def _start_log_stream(self):
-        """Inicia el hilo de captura de logs."""
         if not self.log_thread:
             self.log_thread = LogStreamerThread("mc-server", self)
             self.log_thread.log_received.connect(self._append_log_line)
             self.log_thread.start()
 
     def _append_log_line(self, line: str):
-        """Inserta una línea de registro en la consola con auto-scroll."""
         self.console_output.appendPlainText(line)
         if self.chk_autoscroll.isChecked():
             sb = self.console_output.verticalScrollBar()
@@ -340,53 +377,52 @@ class DashboardTab(QWidget):
 
     def _start_status_timer(self):
         self.status_timer = QTimer(self)
-        self.status_timer.setInterval(3000)  # Cada 3 segundos
+        self.status_timer.setInterval(3000)
         self.status_timer.timeout.connect(self._update_statuses)
         self.status_timer.start()
         self._update_statuses()
 
     def _update_statuses(self):
-        """Actualiza los badges visuales en base a la inspección de Podman."""
         try:
             statuses = self.pm.get_all_statuses()
 
             # mc-pod
             pod_st = statuses.get("pod", "Not Created")
             if "Running" in pod_st:
-                self._set_pill_status(self.pill_pod, "ACTIVO", "running")
+                self._set_pill_status(self.pill_pod, t("st_active"), "running")
             elif "Exited" in pod_st or "Stopped" in pod_st:
-                self._set_pill_status(self.pill_pod, "DETENIDO", "stopped")
+                self._set_pill_status(self.pill_pod, t("st_stopped"), "stopped")
             elif "Degraded" in pod_st:
-                self._set_pill_status(self.pill_pod, "DEGRADADO", "warning")
+                self._set_pill_status(self.pill_pod, t("st_degraded"), "warning")
             else:
-                self._set_pill_status(self.pill_pod, "NO CREADO", "unknown")
+                self._set_pill_status(self.pill_pod, t("st_not_created"), "unknown")
 
             # mc-server
             srv_st = statuses.get("server", "not found")
             if srv_st == "running":
-                self._set_pill_status(self.pill_server, "ONLINE", "running")
+                self._set_pill_status(self.pill_server, t("st_online"), "running")
             elif srv_st in ["exited", "stopped"]:
-                self._set_pill_status(self.pill_server, "OFFLINE", "stopped")
+                self._set_pill_status(self.pill_server, t("st_offline"), "stopped")
             else:
-                self._set_pill_status(self.pill_server, "NO EXISTE", "unknown")
+                self._set_pill_status(self.pill_server, t("st_not_created"), "unknown")
 
             # mc-playit
             playit_st = statuses.get("playit", "not found")
             if playit_st == "running":
-                self._set_pill_status(self.pill_playit, "CONECTADO", "running")
+                self._set_pill_status(self.pill_playit, t("st_connected"), "running")
             elif playit_st in ["exited", "stopped"]:
-                self._set_pill_status(self.pill_playit, "DETENIDO", "stopped")
+                self._set_pill_status(self.pill_playit, t("st_stopped"), "stopped")
             else:
-                self._set_pill_status(self.pill_playit, "NO ACTIVO", "unknown")
+                self._set_pill_status(self.pill_playit, t("st_inactive"), "unknown")
 
             # mc-ssh
             ssh_st = statuses.get("ssh", "not found")
             if ssh_st == "running":
-                self._set_pill_status(self.pill_ssh, "PUERTO 2222", "running")
+                self._set_pill_status(self.pill_ssh, "PORT 2222", "running")
             elif ssh_st in ["exited", "stopped"]:
-                self._set_pill_status(self.pill_ssh, "DETENIDO", "stopped")
+                self._set_pill_status(self.pill_ssh, t("st_stopped"), "stopped")
             else:
-                self._set_pill_status(self.pill_ssh, "DESACTIVADO", "unknown")
+                self._set_pill_status(self.pill_ssh, t("st_disabled"), "unknown")
 
         except Exception as e:
             print(f"[DashboardTab] Error actualizando estados: {e}")
@@ -402,25 +438,21 @@ class DashboardTab(QWidget):
         else:
             pill.setObjectName("StatusUnknown")
 
-        # Refrescar estilo de Qt
         pill.style().unpolish(pill)
         pill.style().polish(pill)
 
     # -------------------------------------------------------------------------
-    # ACCIONES RÁPIDAS (EJECUTADAS EN HILOS)
+    # ACCIONES RÁPIDAS
     # -------------------------------------------------------------------------
 
     def _run_async_action(self, action_name: str, target_fn, *args):
-        """Ejecuta una acción en un hilo secundario para mantener la fluidez de la GUI."""
         worker = WorkerActionThread(action_name, target_fn, *args, parent=self)
         worker.finished_signal.connect(self._on_action_finished)
         self.active_workers.append(worker)
         worker.start()
 
     def _on_action_finished(self, success: bool, action_name: str, output: str):
-        # Limpiar workers completados
         self.active_workers = [w for w in self.active_workers if not w.isFinished()]
-
         prefix = "✔" if success else "✖"
         self._append_log_line(f"\n[MC Server-Deck {action_name}] {prefix} {output}\n")
         self._update_statuses()
@@ -431,9 +463,9 @@ class DashboardTab(QWidget):
 
     def _on_stop_server(self):
         dlg = ConfirmDialog(
-            "Detener Servidor",
-            "¿Deseas detener el servidor de Minecraft y todos sus servicios asociados?",
-            confirm_text="Detener",
+            t("dlg_stop_title"),
+            t("dlg_stop_msg"),
+            confirm_text=t("dlg_stop_btn"),
             is_danger=True,
             parent=self,
         )
@@ -443,9 +475,9 @@ class DashboardTab(QWidget):
 
     def _on_restart_server(self):
         dlg = ConfirmDialog(
-            "Reiniciar Servidor",
-            "¿Deseas reiniciar todos los contenedores de Minecraft?",
-            confirm_text="Reiniciar",
+            t("dlg_restart_title"),
+            t("dlg_restart_msg"),
+            confirm_text=t("dlg_restart_btn"),
             is_danger=False,
             parent=self,
         )
@@ -458,8 +490,17 @@ class DashboardTab(QWidget):
         self._run_async_action("Corregir Permisos", self.pm.fix_permissions)
 
     # -------------------------------------------------------------------------
-    # RCON COMANDOS
+    # RCON COMANDOS Y ACCIONES
     # -------------------------------------------------------------------------
+
+    def _open_virtual_keyboard(self):
+        self.cmd_input.setFocus()
+        SteamIntegrator.open_steam_virtual_keyboard()
+
+    def _trigger_oled_mode(self):
+        main_win = self.window()
+        if hasattr(main_win, "start_screensaver"):
+            main_win.start_screensaver()
 
     def _on_send_command(self):
         cmd = self.cmd_input.text().strip()
@@ -473,46 +514,30 @@ class DashboardTab(QWidget):
         self._run_async_action(f"RCON ({command})", self.pm.send_rcon_command, command)
 
     def _quick_op(self):
-        dlg = TouchInputDialog("Hacer Operador", "Introduce el nombre del jugador para hacer OP:", parent=self)
+        dlg = TouchInputDialog(t("dlg_op_title"), t("dlg_op_prompt"), parent=self)
         if dlg.exec():
             player = dlg.get_text()
             if player:
                 self._dispatch_rcon(f"op {player}")
 
     def _quick_whitelist_java(self):
-        dlg = TouchInputDialog("Añadir a Whitelist (Java)", "Nombre de usuario de Minecraft Java:", parent=self)
+        dlg = TouchInputDialog(t("dlg_wl_java_title"), t("dlg_wl_java_prompt"), parent=self)
         if dlg.exec():
             player = dlg.get_text()
             if player:
                 self._dispatch_rcon(f"whitelist add {player}")
 
     def _quick_whitelist_bedrock(self):
-        dlg = TouchInputDialog(
-            "Añadir a Whitelist (Bedrock)",
-            "Gamertag del jugador de Bedrock (Xbox / Consola / Móvil):",
-            parent=self,
-        )
+        dlg = TouchInputDialog(t("dlg_wl_bedrock_title"), t("dlg_wl_bedrock_prompt"), parent=self)
         if dlg.exec():
             player = dlg.get_text()
             if player:
                 self._dispatch_rcon(f"fwhitelist add {player}")
 
-    def _open_virtual_keyboard(self):
-        """Abre el teclado virtual de Steam en pantalla y enfoca el campo de comando."""
-        self.cmd_input.setFocus()
-        SteamIntegrator.open_steam_virtual_keyboard()
-
-    def _trigger_oled_mode(self):
-        """Dispara el modo salvapantallas OLED desde el botón de la consola."""
-        main_win = self.window()
-        if hasattr(main_win, "start_screensaver"):
-            main_win.start_screensaver()
-
     def _quick_save_all(self):
         self._dispatch_rcon("save-all")
 
     def closeEvent(self, event):
-        """Detiene de forma limpia los hilos al cerrar la ventana."""
         if self.log_thread:
             self.log_thread.stop()
         super().closeEvent(event)

@@ -1,6 +1,7 @@
 """
 MC Server-Deck - Pestaña 3: Guía de Conexión y Ayuda
 Muestra la IP local del Steam Deck e instrucciones paso a paso para jugar y transferir archivos.
+Soporte multilenguaje i18n y modos de conexión SSH (IP Local vs Playit.gg).
 """
 
 import socket
@@ -17,12 +18,16 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from i18n import t
+from podman_manager import PodmanManager
+
 
 class GuideTab(QWidget):
     """Pestaña de instrucciones y referencias de red para el usuario de Steam Deck."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.pm = PodmanManager()
         self._build_ui()
 
     def _get_local_ip(self) -> str:
@@ -34,7 +39,7 @@ class GuideTab(QWidget):
             s.close()
             return ip
         except Exception:
-            return "127.0.0.1 (Sin conexión o modo avión)"
+            return "192.168.x.x"
 
     def _build_ui(self):
         main_layout = QVBoxLayout(self)
@@ -62,84 +67,63 @@ class GuideTab(QWidget):
         ip_layout.addWidget(ip_icon)
 
         ip_text_layout = QVBoxLayout()
-        ip_title = QLabel("IP Local de tu Steam Deck en la Red:")
-        ip_title.setStyleSheet("font-size: 13px; font-weight: 700; color: #94a3b8;")
+        self.ip_title = QLabel(t("guide_ip_title"))
+        self.ip_title.setStyleSheet("font-size: 13px; font-weight: 700; color: #94a3b8;")
         self.lbl_ip_val = QLabel(self._get_local_ip())
         self.lbl_ip_val.setStyleSheet("font-size: 22px; font-weight: 800; color: #38bdf8;")
-        ip_text_layout.addWidget(ip_title)
+        ip_text_layout.addWidget(self.ip_title)
         ip_text_layout.addWidget(self.lbl_ip_val)
         ip_layout.addLayout(ip_text_layout, 1)
 
-        btn_refresh_ip = QPushButton("Refrescar IP")
-        btn_refresh_ip.setStyleSheet("padding: 8px 16px; font-size: 13px;")
-        btn_refresh_ip.clicked.connect(lambda: self.lbl_ip_val.setText(self._get_local_ip()))
-        ip_layout.addWidget(btn_refresh_ip)
+        self.btn_refresh_ip = QPushButton(t("btn_refresh_ip"))
+        self.btn_refresh_ip.setStyleSheet("padding: 8px 16px; font-size: 13px;")
+        self.btn_refresh_ip.clicked.connect(self._refresh_ip)
+        ip_layout.addWidget(self.btn_refresh_ip)
 
         container_layout.addWidget(ip_card)
 
         # ---------------------------------------------------------------------
         # GRID DE GUÍAS DE CONEXIÓN
         # ---------------------------------------------------------------------
-        grid = QGridLayout()
-        grid.setSpacing(14)
+        self.grid = QGridLayout()
+        self.grid.setSpacing(14)
 
-        # 1. Java Edition (LAN)
-        card_java = self._create_card(
-            "☕ Conectar desde Minecraft Java (PC / Mac / Linux)",
-            "<b>En la misma red WiFi/Cable:</b><br>"
-            "1. Abre Minecraft Java Edition.<br>"
-            "2. Ve a <i>Multijugador -> Añadir Servidor</i>.<br>"
-            f"3. Dirección del servidor: <code>{self.lbl_ip_val.text()}:25565</code>.<br>"
-            "4. ¡Haz clic en Unirse al Servidor!",
+        ip = self.lbl_ip_val.text()
+        cfg = self.pm.load_config()
+        ssh_user = cfg.get("ssh_user", "adminmc")
+
+        self.card_java, self.lbl_java_title, self.lbl_java_body = self._create_card(
+            t("guide_java_title"),
+            t("guide_java_body", ip=ip),
             color_accent="#38bdf8"
         )
-        grid.addWidget(card_java, 0, 0)
+        self.grid.addWidget(self.card_java, 0, 0)
 
-        # 2. Bedrock Edition (Consolas, Móviles, Switch)
-        card_bedrock = self._create_card(
-            "🎮 Conectar desde Bedrock (Xbox, Switch, PS4/5, Celular)",
-            "<b>Gracias a GeyserMC + Floodgate:</b><br>"
-            "1. Abre Minecraft Bedrock.<br>"
-            "2. Ve a la pestaña <i>Servidores -> Añadir Servidor</i>.<br>"
-            f"3. IP del Servidor: <code>{self.lbl_ip_val.text()}</code>.<br>"
-            "4. Puerto: <code>19132</code> (Puerto estándar de Bedrock).<br>"
-            "<i>(Nota: En consolas como Xbox o Switch puedes usar apps como BedrockTogether o DNS).</i>",
+        self.card_bedrock, self.lbl_bedrock_title, self.lbl_bedrock_body = self._create_card(
+            t("guide_bedrock_title"),
+            t("guide_bedrock_body", ip=ip),
             color_accent="#a78bfa"
         )
-        grid.addWidget(card_bedrock, 0, 1)
+        self.grid.addWidget(self.card_bedrock, 0, 1)
 
-        # 3. Jugar por Internet con Playit.gg
-        card_playit = self._create_card(
-            "🌐 Jugar por Internet con amigos (Sin abrir puertos)",
-            "1. Consigue tu <i>Secret Key</i> registrándote en <a style='color:#38bdf8;' href='https://playit.gg'>playit.gg</a>.<br>"
-            "2. Pégala en la pestaña <b>Configurar Servidor</b> y guarda.<br>"
-            "3. En tu panel de playit.gg crea un túnel:<br>"
-            "   • TCP en puerto 25565 para Java.<br>"
-            "   • UDP en puerto 19132 para Bedrock.<br>"
-            "4. Comparte la dirección pública asignada (ej: <code>algo.craft.ply.gg</code>) a tus amigos.",
+        self.card_playit, self.lbl_playit_title, self.lbl_playit_body = self._create_card(
+            t("guide_playit_title"),
+            t("guide_playit_body"),
             color_accent="#10b981"
         )
-        grid.addWidget(card_playit, 1, 0)
+        self.grid.addWidget(self.card_playit, 1, 0)
 
-        # 4. Transferencia de Archivos SFTP
-        card_sftp = self._create_card(
-            "📁 Transferir Mods, Plugins y Mundos (SFTP)",
-            "1. Activa el contenedor SSH en <b>Configurar Servidor</b>.<br>"
-            "2. Abre <b>FileZilla</b>, <b>WinSCP</b> o <b>Cyberduck</b> en tu PC.<br>"
-            "3. Configuración de conexión:<br>"
-            "   • Protocolo: <code>SFTP</code><br>"
-            f"   • Servidor: <code>{self.lbl_ip_val.text()}</code><br>"
-            "   • Puerto: <code>2222</code><br>"
-            "   • Usuario: <code>adminmc</code> (o el configurado)<br>"
-            "   • Carpeta de destino del mundo: <code>/servidor-mc</code>",
+        self.card_sftp, self.lbl_sftp_title, self.lbl_sftp_body = self._create_card(
+            t("guide_sftp_title"),
+            t("guide_sftp_body", ip=ip, user=ssh_user),
             color_accent="#f59e0b"
         )
-        grid.addWidget(card_sftp, 1, 1)
+        self.grid.addWidget(self.card_sftp, 1, 1)
 
-        container_layout.addLayout(grid)
+        container_layout.addLayout(self.grid)
 
         # ---------------------------------------------------------------------
-        # CONSEJOS PARA STEAM DECK (SUSPENSIÓN / GAMING MODE)
+        # CONSEJOS PARA STEAM DECK (SUSPENSIÓN / GAMING MODE / OLED)
         # ---------------------------------------------------------------------
         tips_card = QFrame()
         tips_card.setObjectName("CardFrame")
@@ -147,26 +131,50 @@ class GuideTab(QWidget):
         tips_layout.setContentsMargins(16, 16, 16, 16)
         tips_layout.setSpacing(8)
 
-        tips_title = QLabel("🔋 Consejos para el Servidor en Steam Deck:")
-        tips_title.setStyleSheet("font-size: 15px; font-weight: 700; color: #f8fafc;")
-        tips_layout.addWidget(tips_title)
+        self.tips_title = QLabel(t("guide_tips_title"))
+        self.tips_title.setStyleSheet("font-size: 15px; font-weight: 700; color: #f8fafc;")
+        tips_layout.addWidget(self.tips_title)
 
-        tips_content = QLabel(
-            "• <b>Protector de Pantalla OLED (Anti-Burn):</b> Para proteger la pantalla OLED de la Steam Deck contra quemados sin apagar el servidor, activa el <b>Modo OLED</b> (botón 🌙 superior). Utiliza fondo negro absoluto (0% emisión OLED con píxeles apagados) e icono rebotante tipo monitor CRT / DVD. Además, el sistema inhibe la suspensión de SteamOS para que nadie se desconecte.<br>"
-            "• <b>Añadir a la Biblioteca de Steam:</b> Puedes registrar MC Server-Deck en tu biblioteca de Steam para el Modo Juego en un solo clic usando el botón <b>➕ Añadir a Steam</b> de la barra superior.<br>"
-            "• <b>Modo de Energía:</b> Conecta el cargador oficial de 45W si vas a hospedar partidas largas con muchos amigos.<br>"
-            "• <b>Teclado en Gaming Mode:</b> Pulsa el botón ⌨️ en la consola o el atajo <b>STEAM + X</b> para abrir el teclado virtual en pantalla."
-        )
-        tips_content.setStyleSheet("font-size: 13px; color: #94a3b8; line-height: 1.5;")
-        tips_content.setWordWrap(True)
-        tips_layout.addWidget(tips_content)
+        self.tips_content = QLabel(t("guide_tips_body"))
+        self.tips_content.setStyleSheet("font-size: 13px; color: #94a3b8; line-height: 1.5;")
+        self.tips_content.setWordWrap(True)
+        tips_layout.addWidget(self.tips_content)
 
         container_layout.addWidget(tips_card)
 
         scroll_area.setWidget(container)
         main_layout.addWidget(scroll_area)
 
-    def _create_card(self, title: str, html_body: str, color_accent: str = "#38bdf8") -> QFrame:
+    def _refresh_ip(self):
+        new_ip = self._get_local_ip()
+        self.lbl_ip_val.setText(new_ip)
+        self.retranslate_ui()
+
+    def retranslate_ui(self):
+        """Actualiza todas las etiquetas y tarjetas según el idioma activo."""
+        ip = self.lbl_ip_val.text()
+        cfg = self.pm.load_config()
+        ssh_user = cfg.get("ssh_user", "adminmc")
+
+        self.ip_title.setText(t("guide_ip_title"))
+        self.btn_refresh_ip.setText(t("btn_refresh_ip"))
+
+        self.lbl_java_title.setText(t("guide_java_title"))
+        self.lbl_java_body.setText(t("guide_java_body", ip=ip))
+
+        self.lbl_bedrock_title.setText(t("guide_bedrock_title"))
+        self.lbl_bedrock_body.setText(t("guide_bedrock_body", ip=ip))
+
+        self.lbl_playit_title.setText(t("guide_playit_title"))
+        self.lbl_playit_body.setText(t("guide_playit_body"))
+
+        self.lbl_sftp_title.setText(t("guide_sftp_title"))
+        self.lbl_sftp_body.setText(t("guide_sftp_body", ip=ip, user=ssh_user))
+
+        self.tips_title.setText(t("guide_tips_title"))
+        self.tips_content.setText(t("guide_tips_body"))
+
+    def _create_card(self, title: str, html_body: str, color_accent: str = "#38bdf8"):
         card = QFrame()
         card.setObjectName("CardFrame")
         card_layout = QVBoxLayout(card)
@@ -184,4 +192,4 @@ class GuideTab(QWidget):
         card_layout.addWidget(lbl_body)
         card_layout.addStretch()
 
-        return card
+        return card, lbl_title, lbl_body

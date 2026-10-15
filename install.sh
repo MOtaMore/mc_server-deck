@@ -67,6 +67,7 @@ echo -e "\n${COLOR_BLUE}[3/6] Copiando archivos de MC Server-Deck...${COLOR_RESE
 cp -rf "$SOURCE_DIR/main.py" "$TARGET_DIR/"
 cp -rf "$SOURCE_DIR/podman_manager.py" "$TARGET_DIR/"
 cp -rf "$SOURCE_DIR/steam_integrator.py" "$TARGET_DIR/"
+cp -rf "$SOURCE_DIR/i18n.py" "$TARGET_DIR/"
 cp -rf "$SOURCE_DIR/run.sh" "$TARGET_DIR/"
 cp -rf "$SOURCE_DIR/requirements.txt" "$TARGET_DIR/"
 cp -rf "$SOURCE_DIR/ui" "$TARGET_DIR/"

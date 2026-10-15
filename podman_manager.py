@@ -260,8 +260,10 @@ class PodmanManager:
             "enable_whitelist": False,
             "playit_key": "",
             "enable_ssh": False,
+            "ssh_mode": "local",  # local, playit
             "ssh_user": "adminmc",
             "ssh_pass": "deckcraft123",
+            "language": "es",
         }
 
         target_cfg = self.config_file if self.config_file.exists() else self.legacy_config_file
