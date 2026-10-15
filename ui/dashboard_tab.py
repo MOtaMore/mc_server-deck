@@ -27,7 +27,7 @@ from PyQt6.QtWidgets import (
 from i18n import t
 from podman_manager import PodmanManager
 from steam_integrator import SteamIntegrator
-from ui.dialogs import ConfirmDialog, TouchInputDialog
+from ui.dialogs import ConfirmDialog, DeployProgressDialog, TouchInputDialog
 
 
 class LogStreamerThread(QThread):
@@ -111,6 +111,24 @@ class WorkerActionThread(QThread):
             self.finished_signal.emit(False, self.action_name, str(e))
 
 
+class RecreatePodWorker(QThread):
+    """Hilo para la eliminación y recreación limpia del pod mc-pod."""
+
+    progress_signal = pyqtSignal(str)
+    finished_signal = pyqtSignal(bool, str)
+
+    def __init__(self, podman_mgr: PodmanManager, parent=None):
+        super().__init__(parent)
+        self.pm = podman_mgr
+
+    def run(self):
+        try:
+            success, msg = self.pm.recreate_pod(progress_callback=self.progress_signal.emit)
+            self.finished_signal.emit(success, msg)
+        except Exception as e:
+            self.finished_signal.emit(False, str(e))
+
+
 class DashboardTab(QWidget):
     """Pestaña del Panel de Control y Consola Interactiva con soporte i18n."""
 
@@ -190,6 +208,14 @@ class DashboardTab(QWidget):
         self.btn_restart.setObjectName("BtnRestart")
         self.btn_restart.clicked.connect(self._on_restart_server)
 
+        self.btn_recreate_pod = QPushButton(t("btn_recreate_pod"))
+        self.btn_recreate_pod.setObjectName("BtnRecreate")
+        self.btn_recreate_pod.setStyleSheet(
+            "background-color: #334155; color: #f8fafc; font-weight: 700; padding: 10px 14px; min-height: 24px;"
+        )
+        self.btn_recreate_pod.setToolTip(t("btn_recreate_pod_tooltip"))
+        self.btn_recreate_pod.clicked.connect(self._on_recreate_pod_clicked)
+
         self.btn_fix_perms = QPushButton(t("btn_fix_perms"))
         self.btn_fix_perms.setObjectName("BtnFix")
         self.btn_fix_perms.setToolTip(t("btn_fix_perms_tooltip"))
@@ -198,6 +224,7 @@ class DashboardTab(QWidget):
         actions_layout.addWidget(self.btn_start, 1)
         actions_layout.addWidget(self.btn_stop, 1)
         actions_layout.addWidget(self.btn_restart, 1)
+        actions_layout.addWidget(self.btn_recreate_pod, 1)
         actions_layout.addWidget(self.btn_fix_perms, 1)
 
         main_layout.addWidget(actions_card)
@@ -319,6 +346,8 @@ class DashboardTab(QWidget):
         self.btn_start.setText(t("btn_start_server"))
         self.btn_stop.setText(t("btn_stop_server"))
         self.btn_restart.setText(t("btn_restart_server"))
+        self.btn_recreate_pod.setText(t("btn_recreate_pod"))
+        self.btn_recreate_pod.setToolTip(t("btn_recreate_pod_tooltip"))
         self.btn_fix_perms.setText(t("btn_fix_perms"))
         self.btn_fix_perms.setToolTip(t("btn_fix_perms_tooltip"))
 
@@ -457,9 +486,79 @@ class DashboardTab(QWidget):
         self._append_log_line(f"\n[MC Server-Deck {action_name}] {prefix} {output}\n")
         self._update_statuses()
 
+        # Si falló al iniciar o reiniciar por conflicto o desincronización de pod:
+        if not success and action_name in ["Iniciar Servidor", "Reiniciar Servidor"]:
+            dlg = ConfirmDialog(
+                t("dlg_pod_conflict_title"),
+                f"{t('dlg_pod_conflict_msg')}\n\n(Detalle: {output})",
+                confirm_text=t("dlg_pod_recreate_btn"),
+                cancel_text=t("dlg_pod_do_nothing_btn"),
+                is_danger=True,
+                parent=self,
+            )
+            if dlg.exec():
+                self._recreate_pod_flow()
+            else:
+                self._append_log_line("[MC Server-Deck] Acción cancelada por el usuario (No hacer nada).")
+
     def _on_start_server(self):
+        # 1. Comprobar si mc-pod presenta un conflicto o estado inconsistente
+        has_conflict, reason = self.pm.check_pod_conflict()
+        if has_conflict:
+            dlg = ConfirmDialog(
+                t("dlg_pod_conflict_title"),
+                f"{t('dlg_pod_conflict_msg')}\n\n({reason})",
+                confirm_text=t("dlg_pod_recreate_btn"),
+                cancel_text=t("dlg_pod_do_nothing_btn"),
+                is_danger=True,
+                parent=self,
+            )
+            if dlg.exec():
+                self._recreate_pod_flow()
+            else:
+                self._append_log_line("[MC Server-Deck] Inicio cancelado: el usuario eligió no hacer nada.")
+            return
+
         self._append_log_line("[MC Server-Deck] Solicitando inicio del pod 'mc-pod'...")
         self._run_async_action("Iniciar Servidor", self.pm.start_pod)
+
+    def _on_recreate_pod_clicked(self):
+        """Permite al usuario elegir si eliminar y recrear mc-pod desde cero o no hacer nada."""
+        dlg = ConfirmDialog(
+            t("dlg_pod_conflict_title"),
+            t("dlg_pod_conflict_msg"),
+            confirm_text=t("dlg_pod_recreate_btn"),
+            cancel_text=t("dlg_pod_do_nothing_btn"),
+            is_danger=True,
+            parent=self,
+        )
+        if dlg.exec():
+            self._recreate_pod_flow()
+        else:
+            self._append_log_line("[MC Server-Deck] Reparación cancelada: el usuario eligió no hacer nada.")
+
+    def _recreate_pod_flow(self):
+        """Orquesta la recreación limpia del pod mc-pod con barra de progreso táctil."""
+        self._append_log_line("[MC Server-Deck] Iniciando recreación limpia de 'mc-pod'...")
+        progress_dlg = DeployProgressDialog(parent=self)
+        progress_dlg.status_title.setText(t("dlg_pod_recreate_btn"))
+        progress_dlg.append_log("[MC Server-Deck] Recreando pod 'mc-pod' y limpiando puertos...")
+
+        worker = RecreatePodWorker(self.pm, parent=self)
+        worker.progress_signal.connect(progress_dlg.append_log)
+        worker.progress_signal.connect(self._append_log_line)
+
+        def on_done(success: bool, msg: str):
+            progress_dlg.set_finished(success, msg)
+            self._update_statuses()
+            if success:
+                self._append_log_line(f"\n✔ mc-pod recreado exitosamente: {msg}\n")
+            else:
+                self._append_log_line(f"\n✖ Error recreando mc-pod: {msg}\n")
+
+        worker.finished_signal.connect(on_done)
+        worker.start()
+        progress_dlg.exec()
 
     def _on_stop_server(self):
         dlg = ConfirmDialog(

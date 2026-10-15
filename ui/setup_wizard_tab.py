@@ -29,7 +29,7 @@ from PyQt6.QtWidgets import (
 
 from i18n import t
 from podman_manager import PodmanManager
-from ui.dialogs import DeployProgressDialog
+from ui.dialogs import ConfirmDialog, DeployProgressDialog
 
 
 class DeployWorkerThread(QThread):
@@ -38,15 +38,18 @@ class DeployWorkerThread(QThread):
     progress_signal = pyqtSignal(str)
     finished_signal = pyqtSignal(bool, str)
 
-    def __init__(self, podman_mgr: PodmanManager, config: dict, parent=None):
+    def __init__(self, podman_mgr: PodmanManager, config: dict, force_recreate_pod: bool = False, parent=None):
         super().__init__(parent)
         self.pm = podman_mgr
         self.config = config
+        self.force_recreate_pod = force_recreate_pod
 
     def run(self):
         try:
             success, message = self.pm.deploy_server(
-                self.config, progress_callback=self.progress_signal.emit
+                self.config,
+                progress_callback=self.progress_signal.emit,
+                force_recreate_pod=self.force_recreate_pod,
             )
             self.finished_signal.emit(success, message)
         except Exception as e:
@@ -377,8 +380,13 @@ class SetupWizardTab(QWidget):
         container_layout.addWidget(ssh_card)
 
         # ---------------------------------------------------------------------
-        # BOTÓN PRINCIPAL DE GUARDAR Y DESPLEGAR
+        # BOTÓN PRINCIPAL DE GUARDAR Y DESPLEGAR Y OPCIÓN DE RECREAR POD
         # ---------------------------------------------------------------------
+        self.chk_recreate_pod = QCheckBox(t("chk_recreate_pod"))
+        self.chk_recreate_pod.setStyleSheet("font-size: 13px; font-weight: 600; color: #f59e0b;")
+        self.chk_recreate_pod.setChecked(False)
+        container_layout.addWidget(self.chk_recreate_pod)
+
         self.btn_deploy = QPushButton(t("btn_deploy"))
         self.btn_deploy.setObjectName("BtnDeploy")
         self.btn_deploy.clicked.connect(self._on_deploy_clicked)
@@ -437,6 +445,7 @@ class SetupWizardTab(QWidget):
         self.lbl_pass.setText(t("lbl_ssh_pass"))
         self._update_ssh_info_label()
 
+        self.chk_recreate_pod.setText(t("chk_recreate_pod"))
         self.btn_deploy.setText(t("btn_deploy"))
 
     # -------------------------------------------------------------------------
@@ -629,6 +638,7 @@ class SetupWizardTab(QWidget):
 
     def _on_deploy_clicked(self):
         config = self._collect_config()
+        force_recreate = self.chk_recreate_pod.isChecked()
 
         self.progress_dialog = DeployProgressDialog(parent=self)
         self.progress_dialog.append_log("[MC Server-Deck] Iniciando orquestación de Podman...")
@@ -638,8 +648,10 @@ class SetupWizardTab(QWidget):
         self.progress_dialog.append_log(f"  • Crossplay Bedrock: {config['crossplay']}")
         self.progress_dialog.append_log(f"  • Modo Online: {config['online_mode']}")
         self.progress_dialog.append_log(f"  • Modo SSH: {config['ssh_mode']}")
+        if force_recreate:
+            self.progress_dialog.append_log("  • Limpieza / Recreación de mc-pod: ACTIVADA")
 
-        self.deploy_worker = DeployWorkerThread(self.pm, config, parent=self)
+        self.deploy_worker = DeployWorkerThread(self.pm, config, force_recreate_pod=force_recreate, parent=self)
         self.deploy_worker.progress_signal.connect(self.progress_dialog.append_log)
         self.deploy_worker.finished_signal.connect(self._on_deploy_finished)
         self.deploy_worker.start()
@@ -651,3 +663,17 @@ class SetupWizardTab(QWidget):
             self.progress_dialog.set_finished(success, message)
         if success:
             self.server_deployed_signal.emit()
+            # Resetear checkbox tras despliegue exitoso
+            self.chk_recreate_pod.setChecked(False)
+        else:
+            dlg = ConfirmDialog(
+                t("dlg_pod_conflict_title"),
+                f"{t('dlg_pod_conflict_msg')}\n\n(Error: {message})",
+                confirm_text=t("dlg_pod_recreate_btn"),
+                cancel_text=t("dlg_pod_do_nothing_btn"),
+                is_danger=True,
+                parent=self,
+            )
+            if dlg.exec():
+                self.chk_recreate_pod.setChecked(True)
+                self._on_deploy_clicked()

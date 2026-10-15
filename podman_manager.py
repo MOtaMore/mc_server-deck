@@ -118,11 +118,65 @@ class PodmanManager:
     # CONTROL DEL POD Y CONTENEDORES
     # -------------------------------------------------------------------------
 
+    def check_pod_conflict(self) -> Tuple[bool, str]:
+        """
+        Verifica si 'mc-pod' presenta un conflicto o estado inconsistente.
+        Retorna (hay_conflicto, razon_descriptiva).
+        """
+        if not self.is_podman_available():
+            return False, "Podman no disponible"
+
+        pod_status = self.get_pod_status()
+        if pod_status == "Not Created":
+            return False, "Pod no creado"
+
+        if "degraded" in pod_status.lower():
+            return True, f"El pod 'mc-pod' está en estado 'Degraded' (algunos contenedores o infra fallaron)."
+
+        server_status = self.get_container_status(self.SERVER_CONTAINER)
+        if server_status == "not found":
+            return True, "El pod 'mc-pod' existe pero el contenedor 'mc-server' no fue encontrado dentro de él."
+
+        return False, "OK"
+
+    def remove_pod(self) -> Tuple[bool, str]:
+        """
+        Elimina forzosamente mc-pod y sus contenedores para resolver conflictos de red.
+        Preserva intactos todos los mundos y archivos de configuración en el host (/data).
+        """
+        if not self.is_podman_available():
+            return False, "Podman no está disponible."
+
+        # Remover contenedores huérfanos si existieran
+        for c in [self.SERVER_CONTAINER, self.PLAYIT_CONTAINER, self.SSH_CONTAINER]:
+            self.run_cmd(["podman", "rm", "-f", c], timeout=15)
+
+        # Remover el pod completo
+        return self.run_cmd(["podman", "pod", "rm", "-f", self.POD_NAME], timeout=30)
+
+    def recreate_pod(self, progress_callback=None) -> Tuple[bool, str]:
+        """
+        Elimina mc-pod y lo recrea desde cero usando la configuración guardada,
+        resolviendo conflictos de red y puertos sin borrar el directorio de datos.
+        """
+        def log(msg: str):
+            print(f"[RecreatePod] {msg}")
+            if progress_callback:
+                progress_callback(msg)
+
+        log("Eliminando pod 'mc-pod' y liberando puertos...")
+        self.remove_pod()
+        time.sleep(1)
+        cfg = self.load_config()
+        return self.deploy_server(cfg, progress_callback=progress_callback, force_recreate_pod=True)
+
     def start_pod(self) -> Tuple[bool, str]:
         """Inicia el pod mc-pod y todos sus contenedores asociados."""
         pod_status = self.get_pod_status()
         if pod_status == "Not Created":
             return False, "El pod 'mc-pod' no está creado. Ve a 'Configurar Servidor' para desplegarlo primero."
+        if "degraded" in pod_status.lower():
+            return False, f"El pod 'mc-pod' está en estado 'Degraded'. Se recomienda recrearlo para limpiar la red."
         return self.run_cmd(["podman", "pod", "start", self.POD_NAME], timeout=60)
 
     def stop_pod(self) -> Tuple[bool, str]:
@@ -291,16 +345,22 @@ class PodmanManager:
     # DESPLIEGUE Y ACTUALIZACIÓN DEL SERVIDOR
     # -------------------------------------------------------------------------
 
-    def deploy_server(self, config: Dict, progress_callback=None) -> Tuple[bool, str]:
+    def deploy_server(
+        self,
+        config: Dict,
+        progress_callback=None,
+        force_recreate_pod: bool = False,
+    ) -> Tuple[bool, str]:
         """
         Orquesta el despliegue completo o actualización sin pérdida de datos:
         1. Verifica podman y directorios.
-        2. Crea o verifica mc-pod con puertos 25565, 19132/udp, 2222.
-        3. Detiene y elimina mc-server anterior si existía (los datos quedan en data/).
-        4. Inicia mc-server con la nueva configuración y --user 0:0.
-        5. Inicia o detiene mc-playit según la clave proporcionada.
-        6. Inicia o detiene mc-ssh según la opción seleccionada.
-        7. Aplica corrección de permisos y configuración post-arranque.
+        2. Si force_recreate_pod es True, elimina mc-pod previo y crea uno nuevo.
+        3. Crea o verifica mc-pod con puertos 25565, 19132/udp, 2222.
+        4. Detiene y elimina mc-server anterior si existía (los datos quedan en data/).
+        5. Inicia mc-server con la nueva configuración y --user 0:0.
+        6. Inicia o detiene mc-playit según la clave proporcionada.
+        7. Inicia o detiene mc-ssh según la opción seleccionada.
+        8. Aplica corrección de permisos y configuración post-arranque.
         """
         def log(msg: str):
             print(f"[Deploy] {msg}")
@@ -318,6 +378,12 @@ class PodmanManager:
         log("Verificando pod 'mc-pod'...")
         pod_status = self.get_pod_status()
 
+        if force_recreate_pod:
+            log("Forzando eliminación y recreación limpia de 'mc-pod'...")
+            self.remove_pod()
+            time.sleep(1)
+            pod_status = "Not Created"
+
         if pod_status == "Not Created":
             log("Creando pod 'mc-pod' con puertos 25565 (Java), 19132/udp (Bedrock), 2222 (SSH)...")
             success, out = self.run_cmd([
@@ -328,7 +394,20 @@ class PodmanManager:
                 "-p", "2222:2222",
             ], timeout=60)
             if not success:
-                return False, f"Error al crear el pod: {out}"
+                # Si falló por conflicto residual o puerto en uso, limpiar forzosamente y reintentar
+                if "already exists" in out.lower() or "in use" in out.lower() or "conflict" in out.lower():
+                    log("Detectado residuo o conflicto en pod. Limpiando y reintentando creación...")
+                    self.remove_pod()
+                    time.sleep(1)
+                    success, out = self.run_cmd([
+                        "podman", "pod", "create",
+                        "--name", self.POD_NAME,
+                        "-p", "25565:25565",
+                        "-p", "19132:19132/udp",
+                        "-p", "2222:2222",
+                    ], timeout=60)
+                if not success:
+                    return False, f"Error al crear el pod: {out}"
         else:
             log(f"Pod 'mc-pod' existente encontrado (Estado: {pod_status}).")
 

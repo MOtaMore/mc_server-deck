@@ -54,6 +54,8 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "btn_start_server": "▶ Iniciar Servidor",
         "btn_stop_server": "⏹ Detener Servidor",
         "btn_restart_server": "🔄 Reiniciar Servidor",
+        "btn_recreate_pod": "🛠 Reparar Pod",
+        "btn_recreate_pod_tooltip": "Elimina y recrea mc-pod limpiamente si hay conflictos o desconexión al prender/apagar, sin tocar tus mundos.",
         "btn_fix_perms": "🔧 Corregir Permisos",
         "btn_fix_perms_tooltip": "Ejecuta podman unshare chown -R 0:0 y chmod 777 para reparar errores de permisos en /home/deck",
         
@@ -148,6 +150,11 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "dlg_deploy_preparing": "Preparando contenedores en espacio de usuario...",
         "dlg_deploy_success": "✔ Despliegue completado con éxito",
         "dlg_deploy_error": "✖ Ocurrió un error en el despliegue",
+        "dlg_pod_conflict_title": "Conflicto en mc-pod",
+        "dlg_pod_conflict_msg": "Se ha detectado un conflicto o estado inconsistente en el pod 'mc-pod'.\n\n¿Deseas eliminar el pod 'mc-pod' y recrearlo desde cero limpiamente?\n\n(Tus mundos y configuraciones en /home/deck/minecraft-server/data NO se perderán).",
+        "dlg_pod_recreate_btn": "Recrear mc-pod",
+        "dlg_pod_do_nothing_btn": "No hacer nada",
+        "chk_recreate_pod": "Recrear pod 'mc-pod' limpiamente (Resuelve conflictos de red al prender/apagar)",
         "screensaver_wake_hud": "MC Server-Deck  •  mc-server: {srv_st}  •  mc-pod: {pod_st}  •  (Toca para despertar)",
     },
 
@@ -191,6 +198,8 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "btn_start_server": "▶ Start Server",
         "btn_stop_server": "⏹ Stop Server",
         "btn_restart_server": "🔄 Restart Server",
+        "btn_recreate_pod": "🛠 Repair Pod",
+        "btn_recreate_pod_tooltip": "Deletes and recreates mc-pod cleanly if conflicts or disconnects occur on start/stop, without touching your worlds.",
         "btn_fix_perms": "🔧 Fix Permissions",
         "btn_fix_perms_tooltip": "Runs podman unshare chown -R 0:0 and chmod 777 to fix user permissions in /home/deck",
 
@@ -285,6 +294,11 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "dlg_deploy_preparing": "Preparing user-space containers...",
         "dlg_deploy_success": "✔ Deployment completed successfully",
         "dlg_deploy_error": "✖ An error occurred during deployment",
+        "dlg_pod_conflict_title": "mc-pod Conflict Detected",
+        "dlg_pod_conflict_msg": "A conflict or inconsistent state was detected in pod 'mc-pod'.\n\nDo you want to delete pod 'mc-pod' and recreate it from scratch cleanly?\n\n(Your Minecraft worlds and data in /home/deck/minecraft-server/data will NOT be lost).",
+        "dlg_pod_recreate_btn": "Recreate mc-pod",
+        "dlg_pod_do_nothing_btn": "Do Nothing",
+        "chk_recreate_pod": "Recreate pod 'mc-pod' cleanly (Fixes start/stop network conflicts)",
         "screensaver_wake_hud": "MC Server-Deck  •  mc-server: {srv_st}  •  mc-pod: {pod_st}  •  (Touch to wake)",
     },
 
@@ -328,6 +342,8 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "btn_start_server": "▶ Iniciar Servidor",
         "btn_stop_server": "⏹ Parar Servidor",
         "btn_restart_server": "🔄 Reiniciar Servidor",
+        "btn_recreate_pod": "🛠 Reparar Pod",
+        "btn_recreate_pod_tooltip": "Exclui e recria o mc-pod de forma limpa se houver conflitos ao ligar/desligar, sem tocar nos seus mundos.",
         "btn_fix_perms": "🔧 Corrigir Permissões",
         "btn_fix_perms_tooltip": "Executa podman unshare chown -R 0:0 e chmod 777 para corrigir permissões em /home/deck",
 
@@ -422,6 +438,11 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "dlg_deploy_preparing": "Preparando contêineres em espaço de usuário...",
         "dlg_deploy_success": "✔ Implantação concluída com sucesso",
         "dlg_deploy_error": "✖ Ocorreu um erro na implantação",
+        "dlg_pod_conflict_title": "Conflito no mc-pod",
+        "dlg_pod_conflict_msg": "Foi detectado um conflito ou estado inconsistente no pod 'mc-pod'.\n\nDeseja excluir o pod 'mc-pod' e recriá-lo do zero de forma limpa?\n\n(Seus mundos e configurações em /home/deck/minecraft-server/data NÃO serão perdidos).",
+        "dlg_pod_recreate_btn": "Recriar mc-pod",
+        "dlg_pod_do_nothing_btn": "Não fazer nada",
+        "chk_recreate_pod": "Recriar pod 'mc-pod' limpamente (Resolve conflitos de rede ao ligar/desligar)",
         "screensaver_wake_hud": "MC Server-Deck  •  mc-server: {srv_st}  •  mc-pod: {pod_st}  •  (Toque para acordar)",
     },
 
@@ -465,6 +486,8 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "btn_start_server": "▶ Démarrer Serveur",
         "btn_stop_server": "⏹ Arrêter Serveur",
         "btn_restart_server": "🔄 Redémarrer Serveur",
+        "btn_recreate_pod": "🛠 Réparer Pod",
+        "btn_recreate_pod_tooltip": "Supprime et recrée mc-pod proprement s'il y a des conflits au démarrage/arrêt, sans toucher à vos mondes.",
         "btn_fix_perms": "🔧 Réparer Permissions",
         "btn_fix_perms_tooltip": "Exécute podman unshare chown -R 0:0 et chmod 777 pour réparer les permissions dans /home/deck",
 
@@ -559,6 +582,11 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "dlg_deploy_preparing": "Préparation des conteneurs en espace utilisateur...",
         "dlg_deploy_success": "✔ Déploiement terminé avec succès",
         "dlg_deploy_error": "✖ Une erreur est survenue lors du déploiement",
+        "dlg_pod_conflict_title": "Conflit dans mc-pod",
+        "dlg_pod_conflict_msg": "Un conflit ou un état incohérent a été détecté dans le pod 'mc-pod'.\n\nVoulez-vous supprimer le pod 'mc-pod' et le recréer à zéro proprement ?\n\n(Vos mondes et données dans /home/deck/minecraft-server/data ne seront PAS perdus).",
+        "dlg_pod_recreate_btn": "Recréer mc-pod",
+        "dlg_pod_do_nothing_btn": "Ne rien faire",
+        "chk_recreate_pod": "Recréer pod 'mc-pod' proprement (Résout les conflits réseau au démarrage/arrêt)",
         "screensaver_wake_hud": "MC Server-Deck  •  mc-server: {srv_st}  •  mc-pod: {pod_st}  •  (Touchez pour réveiller)",
     },
 }
