@@ -25,6 +25,7 @@ class PodmanManager:
     def __init__(self, base_dir: Optional[Path] = None):
         self.base_dir = base_dir or self.DEFAULT_BASE_DIR
         self.data_dir = self.base_dir / "data"
+        self.ssh_config_dir = self.base_dir / "ssh-config"
         self.config_file = self.base_dir / "mc_server_config.json"
         self.legacy_config_file = self.base_dir / "deckcraft_config.json"
         self._ensure_directories()
