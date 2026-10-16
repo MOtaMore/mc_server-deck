@@ -217,6 +217,61 @@ body {
   height: 19px;
 }
 
+/* Language Selector */
+.lang-select-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 0 8px 0 10px;
+  height: 38px;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+
+.lang-select-wrapper:hover,
+.lang-select-wrapper:focus-within {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--accent-cyan);
+}
+
+.lang-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--accent-cyan);
+  flex-shrink: 0;
+}
+
+.lang-select {
+  background: transparent;
+  color: var(--text-main);
+  border: none;
+  font-family: var(--font-sans);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+  padding: 4px 6px 4px 0;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.lang-select option {
+  background-color: var(--bg-surface);
+  color: var(--text-main);
+  font-weight: 500;
+  padding: 6px 10px;
+}
+
+.lang-arrow {
+  width: 12px;
+  height: 12px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
 /* Main Body & Tabs */
 .main-body {
   flex: 1;

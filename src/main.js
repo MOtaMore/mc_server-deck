@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { initLanguage, setLanguage, getLanguage, t, applyTranslations } from "./i18n.js";
 
 // State Management
 let currentConfig = {
@@ -13,7 +14,7 @@ let currentConfig = {
   enable_ssh: true,
   ssh_user: "adminmc",
   ssh_pass: "deckcraft123",
-  motd: "Servidor Minecraft en Steam Deck",
+  motd: "Minecraft Server on Steam Deck",
   difficulty: "normal",
   max_players: 10,
   custom_env: {}
@@ -21,13 +22,17 @@ let currentConfig = {
 
 let networkInfo = null;
 let lastLogText = "";
+let lastStatus = null;
 let isScreensaverActive = false;
 let screensaverAnimId = null;
 let idleTimer = null;
-const IDLE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutos de inactividad para OLED
+const IDLE_TIMEOUT_MS = 5 * 60 * 1000; // 5 min idle timer for OLED
 
 // DOM Elements
 const elements = {
+  // Language Selector
+  langSelect: document.getElementById("lang-select"),
+
   // Tabs
   navTabs: document.querySelectorAll(".nav-tab"),
   tabContents: document.querySelectorAll(".tab-content"),
@@ -175,80 +180,92 @@ elements.connTabs.forEach(tab => {
 async function refreshStatus() {
   try {
     const status = await invoke("get_status");
+    lastStatus = status;
     updateStatusUI(status);
   } catch (err) {
-    console.error("Error al obtener estado:", err);
+    console.error("Error fetching status:", err);
   }
 }
 
 function updateStatusUI(status) {
+  if (!status) return;
   const podState = (status.status || "Unknown").toLowerCase();
   
   // Global Header Badge
   elements.podGlobalBadge.className = "status-pill";
   if (podState === "running" && status.is_healthy) {
     elements.podGlobalBadge.classList.add("status-running");
-    elements.podGlobalText.textContent = "Servidor Activo";
-    elements.screensaverStatusBadge.textContent = "Servidor Activo";
+    elements.podGlobalText.textContent = t("status.running");
+    elements.screensaverStatusBadge.textContent = t("status.running");
     elements.screensaverStatusBadge.style.color = "var(--status-green)";
   } else if (podState === "degraded" || status.desync_detected) {
     elements.podGlobalBadge.classList.add("status-degraded");
-    elements.podGlobalText.textContent = "Desincronizado";
-    elements.screensaverStatusBadge.textContent = "Atención requerida";
+    elements.podGlobalText.textContent = t("status.degraded");
+    elements.screensaverStatusBadge.textContent = t("status.attention_required");
     elements.screensaverStatusBadge.style.color = "var(--status-amber)";
   } else if (podState === "not created") {
     elements.podGlobalBadge.classList.add("status-stopped");
-    elements.podGlobalText.textContent = "No Creado";
-    elements.screensaverStatusBadge.textContent = "Servidor No Creado";
+    elements.podGlobalText.textContent = t("status.not_created");
+    elements.screensaverStatusBadge.textContent = t("status.server_not_created");
     elements.screensaverStatusBadge.style.color = "var(--text-muted)";
   } else {
     elements.podGlobalBadge.classList.add("status-stopped");
-    elements.podGlobalText.textContent = "Detenido";
-    elements.screensaverStatusBadge.textContent = "Servidor Detenido";
+    elements.podGlobalText.textContent = t("status.stopped");
+    elements.screensaverStatusBadge.textContent = t("status.server_stopped");
     elements.screensaverStatusBadge.style.color = "var(--text-muted)";
   }
 
   // Anti-Desync Alert Banner
   if (status.desync_detected) {
     elements.desyncAlert.classList.remove("hidden");
-    elements.desyncReasonText.textContent = status.desync_reason || "Estado del pod inconsistente.";
-    elements.podSyncVal.textContent = "Desincronizado";
+    elements.desyncReasonText.textContent = status.desync_reason || t("alert.desync_default_reason");
+    elements.podSyncVal.textContent = t("status.degraded");
     elements.podSyncVal.className = "val text-highlight";
   } else {
     elements.desyncAlert.classList.add("hidden");
-    elements.podSyncVal.textContent = "Sincronizado";
+    elements.podSyncVal.textContent = t("status.optimal");
     elements.podSyncVal.className = "val text-green";
   }
 
   // Card: mc-pod
-  elements.cardPodBadge.textContent = status.status;
   elements.cardPodBadge.className = "badge";
-  if (podState === "running") elements.cardPodBadge.classList.add("badge-green");
-  else if (podState === "degraded") elements.cardPodBadge.classList.add("badge-amber");
-  else elements.cardPodBadge.classList.add("badge-gray");
+  if (podState === "running") {
+    elements.cardPodBadge.textContent = t("status.running");
+    elements.cardPodBadge.classList.add("badge-green");
+  } else if (podState === "degraded") {
+    elements.cardPodBadge.textContent = t("status.degraded");
+    elements.cardPodBadge.classList.add("badge-amber");
+  } else if (podState === "not created") {
+    elements.cardPodBadge.textContent = t("status.not_created");
+    elements.cardPodBadge.classList.add("badge-gray");
+  } else {
+    elements.cardPodBadge.textContent = status.status || t("status.stopped");
+    elements.cardPodBadge.classList.add("badge-gray");
+  }
 
   // Card: mc-server
   const serverContainer = status.containers ? status.containers["mc-server"] : null;
   if (serverContainer) {
-    elements.cardServerBadge.textContent = serverContainer.status;
     elements.cardServerBadge.className = "badge";
     if (serverContainer.status === "running") {
+      elements.cardServerBadge.textContent = t("status.running");
       elements.cardServerBadge.classList.add("badge-green");
     } else {
+      elements.cardServerBadge.textContent = serverContainer.status;
       elements.cardServerBadge.classList.add("badge-red");
     }
   } else {
-    elements.cardServerBadge.textContent = "No Creado";
+    elements.cardServerBadge.textContent = t("status.not_found");
     elements.cardServerBadge.className = "badge badge-gray";
   }
 
   // Card: mc-ssh
   const sshContainer = status.containers ? status.containers["mc-ssh"] : null;
   if (sshContainer && sshContainer.status === "running") {
-    elements.cardSshBadge.textContent = "Activo";
+    elements.cardSshBadge.textContent = t("status.active");
     elements.cardSshBadge.className = "badge badge-green";
   } else {
-    elements.cardSshBadge.textContent = "Detenido";
+    elements.cardSshBadge.textContent = t("status.stopped");
     elements.cardSshBadge.className = "badge badge-gray";
   }
 
@@ -257,7 +274,7 @@ function updateStatusUI(status) {
     elements.cardTunnelBadge.textContent = "Playit.gg";
     elements.cardTunnelBadge.className = "badge badge-blue";
   } else {
-    elements.cardTunnelBadge.textContent = "IP Pública";
+    elements.cardTunnelBadge.textContent = t("status.public_ip");
     elements.cardTunnelBadge.className = "badge badge-blue";
   }
 }
@@ -273,7 +290,7 @@ async function refreshLogs() {
       renderLogs(logs);
     }
   } catch (_) {
-    // Silencioso si el servidor aún no ha sido lanzado
+    // Silent before server launched
   }
 }
 
@@ -303,7 +320,7 @@ async function sendRcon(cmd) {
   if (!cmd || !cmd.trim()) return;
   const command = cmd.trim();
   
-  // Agregar al terminal local inmediatamente
+  // Add to local terminal immediately
   const div = document.createElement("div");
   div.className = "log-line cmd-sent";
   div.textContent = `> ${command}`;
@@ -321,7 +338,7 @@ async function sendRcon(cmd) {
       elements.terminalBody.scrollTop = elements.terminalBody.scrollHeight;
     }
   } catch (err) {
-    showToast(`Error RCON: ${err}`, "error");
+    showToast(t("toast.rcon_error", { err }), "error");
   }
 }
 
@@ -338,7 +355,7 @@ elements.rconInput.addEventListener("keydown", (e) => {
 });
 
 elements.btnClearLogs.addEventListener("click", () => {
-  elements.terminalBody.innerHTML = '<div class="log-line text-muted">[Consola limpiada localmente]</div>';
+  elements.terminalBody.innerHTML = `<div class="log-line text-muted">${t("terminal.cleared_locally")}</div>`;
 });
 
 // Quick command macro buttons
@@ -350,11 +367,11 @@ document.querySelectorAll(".btn-chip").forEach(chip => {
     if (cmd) {
       sendRcon(cmd);
     } else if (macro === "op") {
-      openTouchDialog("Hacer Administrador (OP)", "Nombre de usuario del jugador de Minecraft:", (user) => {
+      openTouchDialog(t("dialog.op_title"), t("dialog.op_prompt"), (user) => {
         if (user) sendRcon(`op ${user}`);
       });
     } else if (macro === "whitelist") {
-      openTouchDialog("Agregar a Whitelist", "Nombre de usuario a autorizar:", (user) => {
+      openTouchDialog(t("dialog.whitelist_title"), t("dialog.whitelist_prompt"), (user) => {
         if (user) sendRcon(`whitelist add ${user}`);
       });
     }
@@ -365,47 +382,47 @@ document.querySelectorAll(".btn-chip").forEach(chip => {
 // SERVER CONTROLS & ACTIONS
 // ==========================================
 elements.btnStartServer.addEventListener("click", async () => {
-  showToast("Iniciando mc-pod...", "info");
+  showToast(t("toast.starting"), "info");
   try {
     const res = await invoke("start_server");
     showToast(res, "success");
     await refreshStatus();
   } catch (err) {
-    showToast(`Fallo al iniciar: ${err}`, "error");
+    showToast(t("toast.start_error", { err }), "error");
   }
 });
 
 elements.btnStopServer.addEventListener("click", async () => {
-  showToast("Deteniendo mc-pod...", "info");
+  showToast(t("toast.stopping"), "info");
   try {
     const res = await invoke("stop_server");
     showToast(res, "info");
     await refreshStatus();
   } catch (err) {
-    showToast(`Error: ${err}`, "error");
+    showToast(t("toast.error", { err }), "error");
   }
 });
 
 elements.btnRestartServer.addEventListener("click", async () => {
-  showToast("Reiniciando mc-pod...", "info");
+  showToast(t("toast.restarting"), "info");
   try {
     const res = await invoke("restart_server");
     showToast(res, "success");
     await refreshStatus();
   } catch (err) {
-    showToast(`Error: ${err}`, "error");
+    showToast(t("toast.error", { err }), "error");
   }
 });
 
 // Anti-Desync Repair Routine
 async function triggerRepair() {
-  showToast("Ejecutando reconciliación y reparación profunda de Podman...", "info");
+  showToast(t("toast.repairing"), "info");
   try {
     const res = await invoke("repair_pod");
     showToast(res, "success");
     await refreshStatus();
   } catch (err) {
-    showToast(`Error en reconciliación: ${err}`, "error");
+    showToast(t("toast.repair_error", { err }), "error");
   }
 }
 
@@ -415,12 +432,12 @@ elements.btnDeepRepair.addEventListener("click", triggerRepair);
 
 // Fix Permissions
 elements.btnFixPerms.addEventListener("click", async () => {
-  showToast("Aplicando corrección de permisos rootless...", "info");
+  showToast(t("toast.fixing_perms"), "info");
   try {
-    await invoke("repair_pod"); // Ejecuta unshare chown -R 0:0 y chmod
-    showToast("Permisos corregidos exitosamente en ~/minecraft-server/data.", "success");
+    await invoke("repair_pod"); // Executes unshare chown -R 0:0 and fixes permissions
+    showToast(t("toast.perms_fixed"), "success");
   } catch (err) {
-    showToast(`Error: ${err}`, "error");
+    showToast(t("toast.error", { err }), "error");
   }
 });
 
@@ -430,7 +447,7 @@ elements.btnInstallShortcuts.addEventListener("click", async () => {
     const res = await invoke("install_shortcuts");
     showToast(res, "success");
   } catch (err) {
-    showToast(`Error: ${err}`, "error");
+    showToast(t("toast.error", { err }), "error");
   }
 });
 
@@ -443,7 +460,7 @@ async function loadConfigData() {
     currentConfig = { ...currentConfig, ...cfg };
     populateConfigForm();
   } catch (err) {
-    console.error("Error al cargar config:", err);
+    console.error("Error loading config:", err);
   }
 }
 
@@ -522,14 +539,14 @@ async function loadMinecraftVersions() {
       res.versions.forEach(v => {
         const opt = document.createElement("option");
         opt.value = v.id;
-        opt.textContent = `${v.id} ${v.id === res.latest_release ? "(Última versión estable)" : ""}`;
+        opt.textContent = `${v.id} ${v.id === res.latest_release ? t("config.latest_stable") : ""}`;
         if (v.id === currentConfig.version) opt.selected = true;
         elements.cfgVersion.appendChild(opt);
       });
-      showToast("Versiones de Mojang actualizadas.", "info");
+      showToast(t("toast.mojang_updated"), "info");
     }
   } catch (err) {
-    console.warn("Fallo al consultar versiones en vivo:", err);
+    console.warn("Failed to fetch Mojang versions in real-time:", err);
   }
 }
 
@@ -561,16 +578,16 @@ elements.configForm.addEventListener("submit", async (e) => {
   };
 
   currentConfig = deployConfig;
-  showToast("Desplegando servidor en mc-pod... Esto puede tomar unos segundos.", "info");
+  showToast(t("toast.deploying"), "info");
   
   try {
     const res = await invoke("deploy_server", { config: deployConfig });
     showToast(res, "success");
     await refreshStatus();
-    // Volver al dashboard
+    // Return to dashboard
     elements.navTabs[0].click();
   } catch (err) {
-    showToast(`Error al desplegar: ${err}`, "error");
+    showToast(t("toast.deploy_error", { err }), "error");
   }
 });
 
@@ -579,13 +596,13 @@ elements.btnSavePlayit.addEventListener("click", async () => {
   const key = elements.cfgPlayitKey.value.trim();
   currentConfig.playit_key = key;
   currentConfig.connection_mode = "playit";
-  showToast("Guardando clave de Playit.gg y actualizando contenedor...", "info");
+  showToast(t("toast.saving_playit"), "info");
   try {
     await invoke("save_config", { config: currentConfig });
     await invoke("deploy_server", { config: currentConfig });
-    showToast("Túnel Playit.gg configurado y activo.", "success");
+    showToast(t("toast.playit_active"), "success");
   } catch (err) {
-    showToast(`Error: ${err}`, "error");
+    showToast(t("toast.error", { err }), "error");
   }
 });
 
@@ -607,25 +624,25 @@ async function loadNetworkInfo() {
       elements.dashboardPublicIp.textContent = networkInfo.public_ip;
       elements.netPublicIpFull.textContent = `${networkInfo.public_ip}:${networkInfo.mc_java_port}`;
     } else {
-      elements.dashboardPublicIp.textContent = "No disponible";
-      elements.netPublicIpFull.textContent = "No se detectó IP Pública";
+      elements.dashboardPublicIp.textContent = t("status.not_available");
+      elements.netPublicIpFull.textContent = t("status.no_public_ip");
     }
   } catch (err) {
-    console.error("Error al cargar datos de red:", err);
+    console.error("Error loading network info:", err);
   }
 }
 
 // UPnP Button
 elements.btnTestUpnp.addEventListener("click", async () => {
-  elements.upnpResultText.textContent = "Sondeando soporte UPnP en tu router WiFi...";
+  elements.upnpResultText.textContent = t("toast.upnp_probing");
   try {
     const [ok, msg] = await invoke("test_upnp");
     elements.upnpResultText.textContent = msg;
     if (ok) {
-      showToast("¡Puertos abiertos automáticamente vía UPnP!", "success");
+      showToast(t("toast.upnp_success"), "success");
     }
   } catch (err) {
-    elements.upnpResultText.textContent = `Error: ${err}`;
+    showToast(t("toast.error", { err }), "error");
   }
 });
 
@@ -636,7 +653,7 @@ document.querySelectorAll(".btn-copy").forEach(btn => {
     const el = document.getElementById(targetId);
     if (el) {
       navigator.clipboard.writeText(el.textContent.trim());
-      showToast("¡Copiado al portapapeles!", "success");
+      showToast(t("toast.copied"), "success");
     }
   });
 });
@@ -741,6 +758,18 @@ function resetIdleTimer() {
 // INITIALIZATION
 // ==========================================
 async function init() {
+  // Initialize internationalization (defaults to English 'en')
+  const activeLang = initLanguage();
+  if (elements.langSelect) {
+    elements.langSelect.value = activeLang;
+    elements.langSelect.addEventListener("change", (e) => {
+      const newLang = e.target.value;
+      setLanguage(newLang);
+      if (lastStatus) updateStatusUI(lastStatus);
+      if (networkInfo) loadNetworkInfo();
+    });
+  }
+
   resetIdleTimer();
   await loadConfigData();
   await loadMinecraftVersions();
