@@ -28,32 +28,44 @@ fi
 PODMAN_VER=$(podman --version)
 echo -e "${GREEN}✔ Podman detectado:${NC} $PODMAN_VER"
 
-# 2. Comprobar Node.js / npm
-echo -e "${YELLOW}[2/5] Verificando entorno de compilación frontend...${NC}"
-if ! command -v npm &> /dev/null; then
-    echo -e "${YELLOW}npm no encontrado. Instalando dependencias básicas...${NC}"
+# 2. Comprobar Frontend (Pre-compilado en dist/ o Node.js)
+echo -e "${YELLOW}[2/5] Verificando archivos del frontend...${NC}"
+if [ -f "dist/index.html" ]; then
+    echo -e "${GREEN}✔ Paquete frontend pre-compilado listo en 'dist/'. No se requiere npm.${NC}"
+else
+    echo -e "${YELLOW}'dist/' no encontrado. Verificando npm para compilar frontend...${NC}"
+    if ! command -v npm &> /dev/null; then
+        echo -e "${YELLOW}npm no encontrado en SteamOS. Descargando Node.js portátil en espacio de usuario...${NC}"
+        NODE_DIR="$HOME/.local/share/mc-server-deck/tools"
+        mkdir -p "$NODE_DIR"
+        NODE_VER="v20.18.0"
+        NODE_TAR="node-${NODE_VER}-linux-x64.tar.xz"
+        curl -fsSL "https://nodejs.org/dist/${NODE_VER}/${NODE_TAR}" -o "/tmp/${NODE_TAR}"
+        tar -xf "/tmp/${NODE_TAR}" -C "$NODE_DIR"
+        rm -f "/tmp/${NODE_TAR}"
+        export PATH="$NODE_DIR/node-${NODE_VER}-linux-x64/bin:$PATH"
+        echo -e "${GREEN}✔ Node.js portátil configurado:${NC} $(node -v)"
+    else
+        echo -e "${GREEN}✔ npm detectado:${NC} $(npm -v)"
+    fi
+    echo -e "${YELLOW}Compilando frontend con npm...${NC}"
+    npm install
+    npm run build
 fi
 
 # 3. Comprobar Rust / Cargo
 echo -e "${YELLOW}[3/5] Verificando Rust y Cargo...${NC}"
 if ! command -v cargo &> /dev/null; then
-    echo -e "${YELLOW}Rust no está instalado. ¿Deseas instalar rustup automáticamente? (S/n)${NC}"
-    read -r resp
-    if [[ "$resp" =~ ^([nN][oO]|[nN])$ ]]; then
-        echo -e "${RED}Se requiere Rust para compilar el proyecto.${NC}"
-        exit 1
-    else
-        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-        source "$HOME/.cargo/env"
-    fi
+    echo -e "${YELLOW}Rust no está instalado en SteamOS.${NC}"
+    echo -e "Instalando rustup en espacio de usuario (~/.cargo)..."
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+    source "$HOME/.cargo/env" || export PATH="$HOME/.cargo/bin:$PATH"
 fi
 RUST_VER=$(rustc --version)
 echo -e "${GREEN}✔ Rust detectado:${NC} $RUST_VER"
 
-# 4. Compilar proyecto
-echo -e "${YELLOW}[4/5] Compilando MC Server-Deck en Release...${NC}"
-npm install
-npm run build
+# 4. Compilar proyecto en Release
+echo -e "${YELLOW}[4/5] Compilando MC Server-Deck en Release con Cargo...${NC}"
 cd src-tauri
 cargo build --release
 cd ..
@@ -67,11 +79,20 @@ mkdir -p "$HOME/minecraft-server/ssh-config"
 mkdir -p "$HOME/Desktop"
 mkdir -p "$HOME/.local/share/applications"
 
-cp src-tauri/target/release/app "$INSTALL_DIR/mc-server-deck" || cp src-tauri/target/release/mc-server-deck "$INSTALL_DIR/mc-server-deck"
+# Copiar binario compilado
+if [ -f "src-tauri/target/release/mc-server-deck" ]; then
+    cp src-tauri/target/release/mc-server-deck "$INSTALL_DIR/mc-server-deck"
+elif [ -f "src-tauri/target/release/app" ]; then
+    cp src-tauri/target/release/app "$INSTALL_DIR/mc-server-deck"
+else
+    echo -e "${RED}Error: no se encontró el binario compilado en src-tauri/target/release/${NC}"
+    exit 1
+fi
+
 chmod +x "$INSTALL_DIR/mc-server-deck"
 cp assets/icon.png "$INSTALL_DIR/assets/icon.png"
 
-# Crear lanzador .desktop
+# Crear lanzador .desktop para Escritorio y Menú
 DESKTOP_ENTRY="[Desktop Entry]
 Name=MC Server-Deck
 Comment=Servidor de Minecraft nativo en Podman para Steam Deck

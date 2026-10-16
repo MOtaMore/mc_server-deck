@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>MC Server Deck</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script type="module" crossorigin src="/assets/index-D-uGhOHw.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-B4E5z9Vu.css">
+</head>
+<body>
+  <div id="app" class="deck-layout">
+    <!-- Header bar -->
+    <header class="app-header">
+      <div class="header-left">
+        <div class="logo-box">
+          <img src="/assets/icon-ClOQ_pXf.png" alt="MC Server Deck" class="app-icon" onerror="this.src='/src-tauri/icons/32x32.png'">
+          <div class="title-group">
+            <h1>MC Server Deck</h1>
+            <span class="subtitle">Podman Native &bull; SteamOS</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <nav class="nav-tabs">
+        <button class="nav-tab active" data-tab="dashboard">
+          <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+          <span>Dashboard</span>
+        </button>
+        <button class="nav-tab" data-tab="config">
+          <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+          <span>Configuración</span>
+        </button>
+        <button class="nav-tab" data-tab="network">
+          <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+          <span>Red & Acceso</span>
+        </button>
+        <button class="nav-tab" data-tab="tools">
+          <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
+          <span>Herramientas & Steam</span>
+        </button>
+      </nav>
+
+      <div class="header-right">
+        <!-- Global Pod Status Badge -->
+        <div id="pod-global-badge" class="status-pill status-stopped">
+          <span class="status-dot"></span>
+          <span id="pod-global-text">Comprobando...</span>
+        </div>
+        <!-- Screensaver button -->
+        <button id="btn-screensaver" class="btn-icon" title="Modo Salvapantallas OLED (Anti-Quemado)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="main-body">
+      <!-- Anti-Desync Alert Banner (Dynamic) -->
+      <div id="desync-alert" class="alert-banner alert-warning hidden">
+        <div class="alert-icon">⚠️</div>
+        <div class="alert-content">
+          <strong>Desincronización detectada en el Pod:</strong>
+          <span id="desync-reason-text">El contenedor de Minecraft no responde con el pod.</span>
+        </div>
+        <button id="btn-auto-repair" class="btn btn-repair">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+          Reconciliar & Reparar Pod
+        </button>
+      </div>
+
+      <!-- TAB 1: DASHBOARD -->
+      <section id="tab-dashboard" class="tab-content active">
+        <!-- Status Grid -->
+        <div class="cards-grid">
+          <!-- Card: mc-pod -->
+          <div class="card status-card">
+            <div class="card-header">
+              <span class="card-title">Podman Pod (`mc-pod`)</span>
+              <span id="card-pod-badge" class="badge badge-gray">Not Created</span>
+            </div>
+            <div class="card-body">
+              <div class="info-row">
+                <span class="label">Puertos mapeados:</span>
+                <span class="val mono">25565, 19132/udp, 2222</span>
+              </div>
+              <div class="info-row">
+                <span class="label">Sincronización:</span>
+                <span id="pod-sync-val" class="val text-green">Óptima</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card: mc-server -->
+          <div class="card status-card">
+            <div class="card-header">
+              <span class="card-title">Servidor Minecraft (`mc-server`)</span>
+              <span id="card-server-badge" class="badge badge-gray">Not Found</span>
+            </div>
+            <div class="card-body">
+              <div class="info-row">
+                <span class="label">Versión / Motor:</span>
+                <span id="dashboard-version-val" class="val">1.21.4 (Paper)</span>
+              </div>
+              <div class="info-row">
+                <span class="label">RAM Asignada:</span>
+                <span id="dashboard-ram-val" class="val">4G</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card: Network / Tunnel -->
+          <div class="card status-card">
+            <div class="card-header">
+              <span class="card-title">Modo de Conexión</span>
+              <span id="card-tunnel-badge" class="badge badge-blue">IP Pública</span>
+            </div>
+            <div class="card-body">
+              <div class="info-row">
+                <span class="label">IP Local (WiFi):</span>
+                <span id="dashboard-local-ip" class="val mono">192.168.x.x</span>
+              </div>
+              <div class="info-row">
+                <span class="label">IP Pública:</span>
+                <span id="dashboard-public-ip" class="val mono text-highlight">Detectando...</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card: SSH / SFTP -->
+          <div class="card status-card">
+            <div class="card-header">
+              <span class="card-title">Acceso SFTP (`mc-ssh`)</span>
+              <span id="card-ssh-badge" class="badge badge-gray">Detenido</span>
+            </div>
+            <div class="card-body">
+              <div class="info-row">
+                <span class="label">Puerto SFTP:</span>
+                <span class="val mono">2222</span>
+              </div>
+              <div class="info-row">
+                <span class="label">Usuario:</span>
+                <span id="dashboard-ssh-user" class="val mono">adminmc</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Server Controls Bar -->
+        <div class="controls-bar">
+          <div class="actions-group">
+            <button id="btn-start-server" class="btn btn-primary">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+              Iniciar Servidor
+            </button>
+            <button id="btn-stop-server" class="btn btn-danger">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="6" width="12" height="12"></rect></svg>
+              Detener Servidor
+            </button>
+            <button id="btn-restart-server" class="btn btn-secondary">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+              Reiniciar
+            </button>
+            <button id="btn-dashboard-repair" class="btn btn-outline" title="Reconciliar contenedor y resetear desincronizaciones de podman">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"></path></svg>
+              Reparar Pod
+            </button>
+          </div>
+
+          <div class="quick-macros">
+            <span class="macros-label">Comandos Rápidos:</span>
+            <button class="btn-chip" data-cmd="save-all">💾 Guardar Mundo</button>
+            <button class="btn-chip" data-cmd="list">👥 Ver Jugadores</button>
+            <button class="btn-chip" data-macro="op">⭐ Hacer OP</button>
+            <button class="btn-chip" data-macro="whitelist">📋 Whitelist</button>
+            <button class="btn-chip" data-cmd="weather clear">☀️ Despejar Clima</button>
+          </div>
+        </div>
+
+        <!-- Terminal Console -->
+        <div class="terminal-container">
+          <div class="terminal-header">
+            <div class="term-title">
+              <span class="term-dot"></span>
+              <span>Consola del Servidor (Logs & RCON en Vivo)</span>
+            </div>
+            <div class="term-tools">
+              <label class="checkbox-label">
+                <input type="checkbox" id="chk-autoscroll" checked> Auto-Scroll
+              </label>
+              <button id="btn-clear-logs" class="btn-xs">Limpiar</button>
+            </div>
+          </div>
+          <div id="terminal-body" class="terminal-body">
+            <div class="log-line text-muted">[MC Server Deck] Listo. Presiona 'Iniciar Servidor' para comenzar.</div>
+          </div>
+          <div class="terminal-input-bar">
+            <span class="term-prompt">&gt;</span>
+            <input type="text" id="rcon-input" placeholder="Escribe un comando de Minecraft (ej: list, op Steve, say ¡Hola!)..." autocomplete="off">
+            <button id="btn-send-rcon" class="btn btn-sm btn-primary">Enviar</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 2: CONFIGURATION & VERSION CONTROL -->
+      <section id="tab-config" class="tab-content">
+        <div class="config-container">
+          <div class="config-header-banner">
+            <h2>Asistente de Configuración del Servidor</h2>
+            <p>Configura la versión de Minecraft, tipo de motor, memoria RAM y opciones de juego. Tus mundos en <code>~/minecraft-server/data</code> se mantendrán 100% a salvo.</p>
+          </div>
+
+          <form id="config-form" class="config-form-grid">
+            <!-- Col 1: Versions & Engine -->
+            <div class="form-card">
+              <h3 class="form-section-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>
+                1. Control de Versionado y Motor
+              </h3>
+
+              <div class="form-group">
+                <label for="cfg-version">Versión Oficial de Minecraft:</label>
+                <div class="input-with-button">
+                  <select id="cfg-version" class="form-select">
+                    <option value="1.21.4" selected>1.21.4 (Última versión estable)</option>
+                    <option value="1.21.3">1.21.3</option>
+                    <option value="1.21.1">1.21.1</option>
+                    <option value="1.21">1.21</option>
+                    <option value="1.20.4">1.20.4</option>
+                    <option value="1.20.1">1.20.1</option>
+                    <option value="1.19.4">1.19.4</option>
+                    <option value="1.18.2">1.18.2</option>
+                    <option value="1.16.5">1.16.5</option>
+                    <option value="1.12.2">1.12.2</option>
+                  </select>
+                  <button type="button" id="btn-refresh-versions" class="btn btn-secondary btn-sm" title="Consultar versiones desde Mojang API">
+                    🔄 Actualizar
+                  </button>
+                </div>
+                <small class="helper-text">Se actualizan automáticamente desde la API de Mojang.</small>
+              </div>
+
+              <div class="form-group">
+                <label>Tipo de Servidor (Vanilla / Plugins / Mods):</label>
+                <div class="server-types-grid">
+                  <label class="type-card active">
+                    <input type="radio" name="server_type" value="PAPER" checked>
+                    <div class="type-content">
+                      <span class="type-name">Paper (Recomendado)</span>
+                      <span class="type-desc">Plugins Spigot/Paper, optimizado para Steam Deck</span>
+                    </div>
+                  </label>
+                  <label class="type-card">
+                    <input type="radio" name="server_type" value="VANILLA">
+                    <div class="type-content">
+                      <span class="type-name">Vanilla Oficial</span>
+                      <span class="type-desc">Servidor oficial Mojang puro, sin modificaciones</span>
+                    </div>
+                  </label>
+                  <label class="type-card">
+                    <input type="radio" name="server_type" value="PURPUR">
+                    <div class="type-content">
+                      <span class="type-name">Purpur</span>
+                      <span class="type-desc">Máximo rendimiento y opciones configurables</span>
+                    </div>
+                  </label>
+                  <label class="type-card">
+                    <input type="radio" name="server_type" value="FABRIC">
+                    <div class="type-content">
+                      <span class="type-name">Fabric (Mods)</span>
+                      <span class="type-desc">Carga rápida y mods modernos de alto rendimiento</span>
+                    </div>
+                  </label>
+                  <label class="type-card">
+                    <input type="radio" name="server_type" value="FORGE">
+                    <div class="type-content">
+                      <span class="type-name">Forge (Mods)</span>
+                      <span class="type-desc">El clásico ecosistema de mods pesados</span>
+                    </div>
+                  </label>
+                  <label class="type-card">
+                    <input type="radio" name="server_type" value="NEOFORGE">
+                    <div class="type-content">
+                      <span class="type-name">NeoForge (Mods)</span>
+                      <span class="type-desc">La nueva generación del ecosistema Forge</span>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              <!-- Crossplay -->
+              <div class="form-group highlight-box">
+                <div class="toggle-row">
+                  <div>
+                    <strong>Crossplay Java + Bedrock (Geyser + Floodgate)</strong>
+                    <p class="text-sm text-muted">Permite que jugadores de Nintendo Switch, Xbox, PlayStation, Celulares y Windows Bedrock jueguen en este servidor.</p>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="cfg-crossplay" checked>
+                    <span class="slider"></span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <!-- Col 2: Memory & Settings -->
+            <div class="form-card">
+              <h3 class="form-section-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path></svg>
+                2. Rendimiento y Parámetros
+              </h3>
+
+              <div class="form-group">
+                <div class="slider-header">
+                  <label for="cfg-ram-slider">Memoria RAM Asignada:</label>
+                  <span id="ram-slider-val" class="slider-value-badge">4 GB</span>
+                </div>
+                <input type="range" id="cfg-ram-slider" min="2" max="10" step="1" value="4" class="custom-range">
+                <div class="range-labels">
+                  <span>2G</span>
+                  <span class="recommended-mark">4G - 6G (Recomendado Steam Deck)</span>
+                  <span>10G</span>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="cfg-motd">Mensaje del Servidor (MOTD):</label>
+                <input type="text" id="cfg-motd" class="form-input" value="Servidor Minecraft en Steam Deck">
+              </div>
+
+              <div class="form-row">
+                <div class="form-group half">
+                  <label for="cfg-difficulty">Dificultad:</label>
+                  <select id="cfg-difficulty" class="form-select">
+                    <option value="peaceful">Pacífico</option>
+                    <option value="easy">Fácil</option>
+                    <option value="normal" selected>Normal</option>
+                    <option value="hard">Difícil</option>
+                  </select>
+                </div>
+                <div class="form-group half">
+                  <label for="cfg-max-players">Jugadores Máximos:</label>
+                  <input type="number" id="cfg-max-players" class="form-input" min="1" max="50" value="10">
+                </div>
+              </div>
+
+              <div class="toggle-list">
+                <div class="toggle-row">
+                  <div>
+                    <strong>Modo Online (Cuentas Premium)</strong>
+                    <span class="toggle-desc">Desactivar para permitir cuentas No-Premium / mixtas</span>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="cfg-online-mode">
+                    <span class="slider"></span>
+                  </label>
+                </div>
+                <div class="toggle-row">
+                  <div>
+                    <strong>Lista Blanca (Whitelist)</strong>
+                    <span class="toggle-desc">Solo los jugadores autorizados podrán ingresar</span>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="cfg-whitelist">
+                    <span class="slider"></span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="submit-box">
+                <button type="submit" id="btn-deploy-config" class="btn btn-primary btn-large">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+                  Guardar y Desplegar Servidor en Pod
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <!-- TAB 3: NETWORK & ACCESS -->
+      <section id="tab-network" class="tab-content">
+        <div class="network-container">
+          <!-- Connection Mode Tabs -->
+          <div class="connection-mode-selector">
+            <button class="conn-tab active" data-mode="public_ip">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+              <span>Opción 1: Conexión por IP Pública (Directo)</span>
+            </button>
+            <button class="conn-tab" data-mode="playit">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>
+              <span>Opción 2: Túneles Playit.gg (Sin abrir puertos)</span>
+            </button>
+          </div>
+
+          <!-- Section A: Public IP Mode -->
+          <div id="conn-pane-public" class="conn-pane active">
+            <div class="network-cards-layout">
+              <div class="card network-card">
+                <h3>Direcciones de Conexión del Servidor</h3>
+                <div class="ip-boxes">
+                  <div class="ip-display-box">
+                    <span class="ip-type">Para amigos en tu misma casa (Red Local WiFi):</span>
+                    <div class="ip-value-row">
+                      <span id="net-local-ip-full" class="ip-code">192.168.1.100:25565</span>
+                      <button class="btn-copy" data-copy="net-local-ip-full">Copiar</button>
+                    </div>
+                  </div>
+
+                  <div class="ip-display-box highlight">
+                    <span class="ip-type">Para amigos en Internet (IP Pública):</span>
+                    <div class="ip-value-row">
+                      <span id="net-public-ip-full" class="ip-code">Consultando IP Pública...</span>
+                      <button class="btn-copy" data-copy="net-public-ip-full">Copiar</button>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="ports-summary">
+                  <h4>Puertos Utilizados en tu Steam Deck:</h4>
+                  <ul class="ports-list">
+                    <li><span class="port-badge">TCP 25565</span> Minecraft Java Edition</li>
+                    <li><span class="port-badge">UDP 19132</span> Minecraft Bedrock Edition (Crossplay)</li>
+                    <li><span class="port-badge">TCP 2222</span> Acceso SFTP / SSH (Mundos y Mods)</li>
+                  </ul>
+                </div>
+              </div>
+
+              <!-- UPnP & Router Guide Card -->
+              <div class="card network-card">
+                <div class="card-header-action">
+                  <h3>Apertura de Puertos (Router WiFi)</h3>
+                  <button id="btn-test-upnp" class="btn btn-secondary btn-sm">
+                    ⚡ Intentar UPnP Automático
+                  </button>
+                </div>
+                <div id="upnp-result-box" class="upnp-box">
+                  <p id="upnp-result-text">Puedes probar si tu router permite apertura automática mediante UPnP o configurarlo manualmente en la web del router.</p>
+                </div>
+
+                <div class="router-steps">
+                  <h4>Cómo abrir los puertos en tu Router (Paso a Paso):</h4>
+                  <ol>
+                    <li>Abre el navegador en tu PC o móvil y entra a tu router (usualmente <code>http://192.168.1.1</code> o <code>http://192.168.0.1</code>).</li>
+                    <li>Busca la sección <strong>Port Forwarding</strong>, <strong>Reenvío de Puertos</strong> o <strong>Servidores Virtuales</strong>.</li>
+                    <li>Agrega una regla para la IP Local de tu Steam Deck (<strong id="guide-local-ip">192.168.x.x</strong>):
+                      <br>Puerto Externo e Interno: <strong>25565</strong> &bull; Protocolo: <strong>TCP</strong>
+                    </li>
+                    <li>(Opcional para Bedrock): Agrega regla para puerto <strong>19132</strong> con protocolo <strong>UDP</strong>.</li>
+                    <li>Guarda los cambios en el router. ¡Tus amigos ya podrán conectarse a tu IP Pública!</li>
+                  </ol>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section B: Playit.gg Mode -->
+          <div id="conn-pane-playit" class="conn-pane">
+            <div class="card network-card">
+              <h3>Túnel Seguro Playit.gg (Cero Configuración de Router)</h3>
+              <p>Con Playit.gg no necesitas abrir puertos en tu router ni exponer tu IP pública. El agente crea un túnel seguro directo a los servidores de Playit.</p>
+
+              <div class="playit-setup-box">
+                <div class="form-group">
+                  <label for="cfg-playit-key">Secret Key de Playit.gg:</label>
+                  <input type="text" id="cfg-playit-key" class="form-input mono" placeholder="Pega aquí tu secret key de Playit.gg">
+                  <small class="helper-text">
+                    ¿No tienes una cuenta o túnel? Entra gratis en <a href="https://playit.gg" target="_blank" class="external-link">playit.gg</a> y crea un túnel para Minecraft (25565).
+                  </small>
+                </div>
+                <button id="btn-save-playit" class="btn btn-primary">
+                  Guardar y Activar Túnel Playit.gg
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- SSH / SFTP Section -->
+          <div class="card network-card ssh-section">
+            <div class="card-header-action">
+              <div>
+                <h3>Acceso Remoto SFTP / SSH (FileZilla / WinSCP)</h3>
+                <p class="text-sm text-muted">Transfiere mundos, mods, datapacks y plugins de forma inalámbrica desde tu PC principal a la carpeta <code>/servidor-mc</code> de la Steam Deck.</p>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="cfg-enable-ssh" checked>
+                <span class="slider"></span>
+              </label>
+            </div>
+
+            <div id="ssh-credentials-grid" class="ssh-credentials-grid">
+              <div class="form-group">
+                <label for="cfg-ssh-user">Usuario SFTP:</label>
+                <input type="text" id="cfg-ssh-user" class="form-input mono" value="adminmc">
+              </div>
+              <div class="form-group">
+                <label for="cfg-ssh-pass">Contraseña SFTP:</label>
+                <input type="text" id="cfg-ssh-pass" class="form-input mono" value="deckcraft123">
+              </div>
+              <div class="form-group">
+                <label>Puerto SFTP:</label>
+                <input type="text" class="form-input mono" value="2222" readonly>
+              </div>
+            </div>
+
+            <div class="sftp-urls">
+              <div class="sftp-url-item">
+                <span>URL para FileZilla / WinSCP (Red Local):</span>
+                <div class="ip-value-row">
+                  <span id="sftp-local-url" class="ip-code">sftp://adminmc@192.168.1.100:2222</span>
+                  <button class="btn-copy" data-copy="sftp-local-url">Copiar</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 4: TOOLS & STEAM -->
+      <section id="tab-tools" class="tab-content">
+        <div class="tools-container">
+          <div class="tools-grid">
+            <!-- Anti-Desync Repair Tool -->
+            <div class="card tool-card">
+              <div class="tool-icon-box">🛡️</div>
+              <h3>Gestión y Reconciliación Anti-Desincronización</h3>
+              <p>Si Podman reporta estados corruptos, locks de almacenamiento, contenedores caídos o errores de socket, esta herramienta resetea los estados huérfanos y restaura la sincronización limpia del pod.</p>
+              <button id="btn-deep-repair" class="btn btn-warning">
+                Ejecutar Reconciliación Profunda
+              </button>
+            </div>
+
+            <!-- Permission Fixer -->
+            <div class="card tool-card">
+              <div class="tool-icon-box">🔑</div>
+              <h3>Corregir Permisos de Archivos</h3>
+              <p>Ejecuta la rutina rootless <code>podman unshare chown -R 0:0</code> y corrige los permisos de lectura y escritura en la carpeta de mundos y datos para evitar bloqueos.</p>
+              <button id="btn-fix-perms" class="btn btn-secondary">
+                Corregir Permisos de Datos
+              </button>
+            </div>
+
+            <!-- Steam Integration -->
+            <div class="card tool-card">
+              <div class="tool-icon-box">🎮</div>
+              <h3>Integración con Steam (Gaming Mode)</h3>
+              <p>Instala accesos directos en tu Escritorio y en la lista de aplicaciones de SteamOS para poder añadir y abrir la aplicación directamente con los controles de la consola en el Modo Juego.</p>
+              <button id="btn-install-shortcuts" class="btn btn-primary">
+                Instalar Accesos Directos
+              </button>
+            </div>
+
+            <!-- System Info -->
+            <div class="card tool-card">
+              <div class="tool-icon-box">📁</div>
+              <h3>Rutas de Archivos en Steam Deck</h3>
+              <div class="paths-list">
+                <div class="path-item">
+                  <span class="path-label">Datos de Minecraft:</span>
+                  <code class="path-val">~/minecraft-server/data</code>
+                </div>
+                <div class="path-item">
+                  <span class="path-label">Configuración SSH:</span>
+                  <code class="path-val">~/minecraft-server/ssh-config</code>
+                </div>
+                <div class="path-item">
+                  <span class="path-label">Configuración App:</span>
+                  <code class="path-val">~/minecraft-server/mc_server_config.json</code>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Modal for Prompts (Touch-Friendly for Steam Deck) -->
+    <div id="touch-dialog" class="modal-overlay hidden">
+      <div class="modal-card">
+        <h3 id="dialog-title">Comando</h3>
+        <p id="dialog-message">Introduce los detalles:</p>
+        <input type="text" id="dialog-input" class="form-input" autocomplete="off">
+        <div class="modal-actions">
+          <button id="dialog-btn-cancel" class="btn btn-secondary">Cancelar</button>
+          <button id="dialog-btn-ok" class="btn btn-primary">Aceptar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- OLED Screensaver Overlay (100% Black #000000 Anti-Burn-in) -->
+    <div id="oled-screensaver" class="screensaver-overlay hidden">
+      <div id="bouncing-logo" class="bouncing-logo">
+        <img src="/assets/icon-ClOQ_pXf.png" alt="MC Server Deck" class="screensaver-icon" onerror="this.src='/src-tauri/icons/128x128.png'">
+        <div class="screensaver-text">
+          <span class="serv-title">MC Server Deck</span>
+          <span id="screensaver-status-badge" class="serv-status">Servidor Activo</span>
+        </div>
+      </div>
+      <div class="screensaver-hint">
+        Toca cualquier botón o la pantalla táctil para volver al panel
+      </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast-container" class="toast-container"></div>
+  </div>
+
+</body>
+</html>

@@ -5,7 +5,6 @@ Cargo.lock
 
 # Node / Frontend
 node_modules/
-dist/
 dist-ssr/
 *.local
 
