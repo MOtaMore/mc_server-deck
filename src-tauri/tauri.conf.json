@@ -2,12 +2,9 @@
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "MC Server Deck",
   "version": "1.0.0",
-  "identifier": "com.mcserverdeck.app",
+  "identifier": "com.mcserverdeck.deckcraft",
   "build": {
-    "frontendDist": "../dist",
-    "devUrl": "http://localhost:5173",
-    "beforeDevCommand": "npm run dev",
-    "beforeBuildCommand": "npm run build"
+    "frontendDist": "../dist"
   },
   "app": {
     "windows": [
