@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# MC Server-Deck: Instalador Oficial para Steam Deck (SteamOS / Arch Linux)
-# Versión: 2.0 (Rust + Tauri Native Engine)
+# MC Server-Deck: Official Installer for Steam Deck (SteamOS / Arch Linux)
+# Version: 2.0 (Rust + Tauri Native Engine)
 # ==============================================================================
 
 set -e
@@ -17,8 +17,8 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 echo -e "${BLUE}====================================================${NC}"
-echo -e "${BLUE}      MC Server-Deck: Instalador para Steam Deck     ${NC}"
-echo -e "${BLUE}         Motor Nativo en Rust con Podman Rootless     ${NC}"
+echo -e "${BLUE}     MC Server-Deck: Steam Deck Installer           ${NC}"
+echo -e "${BLUE}       Rust Native Engine with Rootless Podman      ${NC}"
 echo -e "${BLUE}====================================================${NC}"
 echo ""
 
@@ -29,62 +29,62 @@ mkdir -p "$HOME/minecraft-server/ssh-config"
 mkdir -p "$HOME/Desktop"
 mkdir -p "$HOME/.local/share/applications"
 
-# 1. Comprobar Podman nativo de SteamOS
-echo -e "${YELLOW}[1/4] Verificando Podman en SteamOS...${NC}"
+# 1. Check native SteamOS Podman
+echo -e "${YELLOW}[1/5] Verifying Podman on SteamOS...${NC}"
 if ! command -v podman &> /dev/null; then
-    echo -e "${RED}Error: Podman no está instalado o no se encuentra en PATH.${NC}"
-    echo "SteamOS incluye podman de forma predeterminada. Verifica tu instalación."
+    echo -e "${RED}Error: Podman is not installed or not found in PATH.${NC}"
+    echo "SteamOS includes podman by default. Please verify your installation."
     exit 1
 fi
 PODMAN_VER=$(podman --version)
-echo -e "${GREEN}✔ Podman detectado:${NC} $PODMAN_VER"
+echo -e "${GREEN}✔ Podman detected:${NC} $PODMAN_VER"
 
-# 2. Verificar dependencias de sistema (WebKitGTK 4.1 para Tauri)
-echo -e "${YELLOW}[2/5] Verificando librería gráfica WebKitGTK...${NC}"
+# 2. Check system dependencies (WebKitGTK 4.1 for Tauri)
+echo -e "${YELLOW}[2/5] Verifying WebKitGTK graphics library...${NC}"
 if ! ldconfig -p 2>/dev/null | grep -q "libwebkit2gtk-4.1.so.0" && [ ! -f "/usr/lib/libwebkit2gtk-4.1.so.0" ]; then
-    echo -e "${YELLOW}SteamOS no incluye la librería 'webkit2gtk-4.1' en su imagen básica.${NC}"
-    echo -e "Es necesaria para renderizar la interfaz gráfica de la aplicación."
-    read -p "¿Deseas instalar 'webkit2gtk-4.1' ahora con pacman (requiere sudo)? (S/n): " ans
-    if [[ "$ans" =~ ^([sS]|)$ ]]; then
-        echo -e "${CYAN}Desbloqueando sistema de archivos e instalando webkit2gtk-4.1...${NC}"
+    echo -e "${YELLOW}SteamOS does not include the 'webkit2gtk-4.1' library in its base image.${NC}"
+    echo -e "It is required to render the application's graphical user interface."
+    read -p "Do you want to install 'webkit2gtk-4.1' now with pacman (requires sudo)? (Y/n): " ans
+    if [[ "$ans" =~ ^([yYsS]|)$ ]]; then
+        echo -e "${CYAN}Unlocking filesystem and installing webkit2gtk-4.1...${NC}"
         sudo steamos-readonly disable
         sudo pacman-key --init
         sudo pacman-key --populate archlinux holo
         sudo pacman -Sy --noconfirm webkit2gtk-4.1
         sudo steamos-readonly enable
-        echo -e "${GREEN}✔ webkit2gtk-4.1 instalado correctamente.${NC}"
+        echo -e "${GREEN}✔ webkit2gtk-4.1 installed successfully.${NC}"
     else
-        echo -e "${RED}Advertencia: la aplicación no podrá abrir la ventana sin webkit2gtk-4.1.${NC}"
+        echo -e "${RED}Warning: The application will not be able to display its window without webkit2gtk-4.1.${NC}"
     fi
 else
-    echo -e "${GREEN}✔ webkit2gtk-4.1 detectado en el sistema.${NC}"
+    echo -e "${GREEN}✔ webkit2gtk-4.1 detected on system.${NC}"
 fi
 
-# 3. Verificar Binario de la Aplicación
-echo -e "${YELLOW}[3/5] Verificando binario ejecutable...${NC}"
+# 3. Check Application Binary
+echo -e "${YELLOW}[3/5] Verifying executable binary...${NC}"
 
 INSTALLED=false
 
-# Caso A: Binario pre-compilado en el repositorio (Recomendado para Steam Deck)
+# Case A: Pre-compiled binary in the repository (Recommended for Steam Deck)
 if [ -f "bin/mc-server-deck" ]; then
-    echo -e "${GREEN}✔ Binario Linux pre-compilado detectado en 'bin/mc-server-deck'.${NC}"
-    echo -e "${CYAN}Instalando binario optimizado sin requerir compiladores en la consola...${NC}"
+    echo -e "${GREEN}✔ Pre-compiled Linux binary detected in 'bin/mc-server-deck'.${NC}"
+    echo -e "${CYAN}Installing optimized binary without requiring compilers on the console...${NC}"
     cp "bin/mc-server-deck" "$INSTALL_DIR/mc-server-deck"
     INSTALLED=true
 elif [ -f "src-tauri/target/release/mc-server-deck" ]; then
-    echo -e "${GREEN}✔ Binario compilado previamente encontrado en target/release.${NC}"
+    echo -e "${GREEN}✔ Previously compiled binary found in target/release.${NC}"
     cp "src-tauri/target/release/mc-server-deck" "$INSTALL_DIR/mc-server-deck"
     INSTALLED=true
 fi
 
-# Caso B: Si no existe el binario pre-compilado, compilar desde código fuente
+# Case B: If pre-compiled binary is not present, compile from source code
 if [ "$INSTALLED" = false ]; then
-    echo -e "${YELLOW}Binario no encontrado. Procediendo a compilar desde código fuente...${NC}"
+    echo -e "${YELLOW}Binary not found. Proceeding to compile from source code...${NC}"
 
-    # Comprobar Frontend
+    # Check Frontend
     if [ ! -f "dist/index.html" ]; then
         if ! command -v npm &> /dev/null; then
-            echo -e "${YELLOW}Descargando Node.js portátil en espacio de usuario para compilar frontend...${NC}"
+            echo -e "${YELLOW}Downloading portable user-space Node.js to build frontend...${NC}"
             NODE_DIR="$HOME/.local/share/mc-server-deck/tools"
             mkdir -p "$NODE_DIR"
             NODE_VER="v20.18.0"
@@ -98,47 +98,47 @@ if [ "$INSTALLED" = false ]; then
         npm run build
     fi
 
-    # Comprobar compilador C ('cc') necesario para Cargo
+    # Check C compiler ('cc') required by Cargo
     if ! command -v cc &> /dev/null && ! command -v gcc &> /dev/null; then
-        echo -e "${YELLOW}SteamOS no incluye el compilador C ('cc') por defecto (sistema de archivos inmutable).${NC}"
-        echo -e "¿Deseas instalar 'base-devel' y 'webkit2gtk-4.1' mediante pacman (requiere sudo)? (s/N)"
+        echo -e "${YELLOW}SteamOS does not include the C compiler ('cc') by default (immutable filesystem).${NC}"
+        echo -e "Do you want to install 'base-devel' and 'webkit2gtk-4.1' via pacman (requires sudo)? (y/N)"
         read -r resp
-        if [[ "$resp" =~ ^([sS])$ ]]; then
+        if [[ "$resp" =~ ^([yYsS])$ ]]; then
             sudo steamos-readonly disable
             sudo pacman-key --init
             sudo pacman-key --populate archlinux holo
             sudo pacman -Sy --noconfirm base-devel webkit2gtk-4.1
             sudo steamos-readonly enable
         else
-            echo -e "${RED}Compilación cancelada. Utiliza el binario pre-compilado en 'bin/mc-server-deck'.${NC}"
+            echo -e "${RED}Compilation cancelled. Please use the pre-compiled binary in 'bin/mc-server-deck'.${NC}"
             exit 1
         fi
     fi
 
-    # Comprobar Rust / Cargo
+    # Check Rust / Cargo
     if ! command -v cargo &> /dev/null; then
-        echo -e "${YELLOW}Instalando Rust y Cargo en espacio de usuario...${NC}"
+        echo -e "${YELLOW}Installing Rust and Cargo in user space...${NC}"
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
         source "$HOME/.cargo/env" || export PATH="$HOME/.cargo/bin:$PATH"
     fi
 
-    echo -e "${YELLOW}Compilando con Cargo en Release...${NC}"
+    echo -e "${YELLOW}Compiling with Cargo in Release mode...${NC}"
     cd src-tauri
     cargo build --release
     cd ..
     cp "src-tauri/target/release/mc-server-deck" "$INSTALL_DIR/mc-server-deck"
 fi
 
-# 4. Permisos y recursos
-echo -e "${YELLOW}[4/5] Configurando archivos y permisos...${NC}"
+# 4. Permissions and assets
+echo -e "${YELLOW}[4/5] Setting up files and permissions...${NC}"
 chmod +x "$INSTALL_DIR/mc-server-deck"
 cp assets/icon.png "$INSTALL_DIR/assets/icon.png"
 
-# 5. Crear accesos directos
-echo -e "${YELLOW}[5/5] Creando accesos directos de SteamOS...${NC}"
+# 5. Create SteamOS shortcuts
+echo -e "${YELLOW}[5/5] Creating SteamOS shortcuts...${NC}"
 DESKTOP_ENTRY="[Desktop Entry]
 Name=MC Server-Deck
-Comment=Servidor de Minecraft nativo en Podman para Steam Deck
+Comment=Native Podman Minecraft Server for Steam Deck
 Exec=$INSTALL_DIR/mc-server-deck
 Icon=$INSTALL_DIR/assets/icon.png
 Terminal=false
@@ -153,14 +153,14 @@ chmod +x "$HOME/.local/share/applications/MC-Server-Deck.desktop"
 
 echo ""
 echo -e "${GREEN}====================================================${NC}"
-echo -e "${GREEN}   ✔ ¡Instalación de MC Server-Deck Finalizada!    ${NC}"
+echo -e "${GREEN}    ✔ MC Server-Deck Installation Complete!        ${NC}"
 echo -e "${GREEN}====================================================${NC}"
 echo ""
-echo -e "Puedes abrir la aplicación desde el acceso directo en tu ${YELLOW}Escritorio${NC}."
+echo -e "You can launch the application from the shortcut on your ${YELLOW}Desktop${NC}."
 echo ""
-echo -e "${BLUE}Para añadirla al Modo Juego (Gaming Mode):${NC}"
-echo "1. Abre Steam en Modo Escritorio."
-echo "2. Haz clic en 'Juegos' -> 'Añadir un producto que no es de Steam a mi biblioteca...'."
-echo "3. Selecciona 'MC Server-Deck' de la lista (o busca $INSTALL_DIR/mc-server-deck)."
-echo "4. ¡Listo! Vuelve al Modo Juego y disfrútalo a 1280x800 con controles táctiles."
+echo -e "${BLUE}To add it to Gaming Mode:${NC}"
+echo "1. Open Steam in Desktop Mode."
+echo "2. Click 'Games' -> 'Add a Non-Steam Game to My Library...'."
+echo "3. Select 'MC Server-Deck' from the list (or browse to $INSTALL_DIR/mc-server-deck)."
+echo "4. Done! Return to Gaming Mode and enjoy at 1280x800 with touch controls."
 echo ""

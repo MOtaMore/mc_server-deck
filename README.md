@@ -1,63 +1,67 @@
-# 🎮 MC Server-Deck (Edición Rust)
+# 🎮 MC Server-Deck (Rust Edition)
 
-Aplicación nativa de alto rendimiento escrita en **Rust** (con interfaz Tauri v2) diseñada específicamente para la **Steam Deck** (SteamOS / Arch Linux). Permite desplegar, administrar y orquestar servidores de Minecraft utilizando el **Podman rootless** nativo del sistema operativo, con cero dependencias externas de Python y con un motor de gestión anti-desincronizaciones.
+**English** • [Español](README.es.md)
 
----
-
-## 🌟 Características Principales
-
-- **Desarrollado 100% en Rust + Tauri v2:**
-  - Máxima velocidad de inicio, consumo mínimo de memoria RAM en la consola y binario compilado nativamente.
-  - Elimina por completo los problemas de entornos virtuales de Python (`venv`), dependencias de `PyQt6` o bloqueos de threads.
-- **Sistema Anti-Desincronizaciones de Podman:**
-  - **Serialización Mutex:** Las operaciones mutativas (`deploy`, `start`, `stop`, `restart`, `repair`) se ejecutan secuencialmente mediante un actor asíncrono en Rust (`tokio::sync::Mutex`), evitando los bloqueos de base de datos de almacenamiento (`storage.db locks`) de Podman.
-  - **Inspección JSON Estructurada:** Lee directamente los estados de Podman mediante `--format json` e inspección profunda del infra-contenedor y los contenedores `mc-server`, `mc-playit` y `mc-ssh`.
-  - **Reconciliación y Auto-Reparación:** Detecta automáticamente si el contenedor principal de Minecraft falló o el pod entró en estado `Degraded`, alertando al usuario y proporcionando una rutina de recuperación en 1 clic que limpia contenedores zombi y resincroniza el pod.
-- **Control de Versionado de Minecraft:**
-  - Conexión directa con la API oficial de Mojang (`piston-meta.mojang.com`) para consultar dinámicamente las últimas versiones estables (1.21.4, 1.20.4, 1.19.2, etc.) y snapshots.
-- **Conectividad Flexible (IP Pública vs Playit.gg):**
-  - **IP Pública:** Detección automática de IP Local (LAN) e IP Pública de internet. Incluye prueba de apertura automática mediante UPnP y guía interactiva paso a paso para abrir puertos en el router WiFi (TCP 25565, UDP 19132, TCP 2222).
-  - **Túneles Playit.gg:** Contenedor `mc-playit` integrado con `SECRET_KEY` para jugar con amigos a través de internet sin abrir ningún puerto ni exponer tu dirección IP.
-- **Elección del Motor de Servidor:**
-  - **Vanilla Oficial:** Servidor oficial de Mojang.
-  - **Plugins:** Paper (Recomendado), Purpur o Spigot.
-  - **Mods:** Fabric, Forge, NeoForge o Quilt.
-- **Crossplay Java + Bedrock Integrado:**
-  - Inyección automática de GeyserMC, Floodgate y SkinsRestorer para que jugadores de consolas (Xbox, PlayStation, Nintendo Switch), móviles (Android, iOS) y Windows Bedrock jueguen en el mismo servidor junto a usuarios de Java.
-- **Acceso Remoto SFTP / SSH:**
-  - Contenedor `mc-ssh` con mapeo a `/servidor-mc` (`~/minecraft-server/data`) para subir mods, mundos, datapacks y plugins de forma inalámbrica desde tu PC principal mediante FileZilla o WinSCP.
-- **Consola RCON Interactiva y Streaming de Logs:**
-  - Envío en vivo de comandos de Minecraft (`op`, `whitelist`, `save-all`, `list`, `say`, etc.) con macros táctiles rápidas.
-- **Protector de Pantalla OLED Anti-Quemado:**
-  - Modo salvapantallas con fondo negro puro (`#000000`, apagando píxeles en la pantalla OLED de la consola) y animación rebotante estilo DVD/CRT para mantener el servidor corriendo indefinidamente sin desgaste de panel.
+High-performance native application written in **Rust** (with Tauri v2 frontend) built specifically for the **Steam Deck** (SteamOS / Arch Linux). Easily deploy, manage, and orchestrate Minecraft servers using native **rootless Podman** on SteamOS, with zero external Python dependencies and an advanced anti-desynchronization engine.
 
 ---
 
-## 🏗 Arquitectura de Contenedores en Podman
+## 🌟 Key Features
 
-La aplicación gestiona un único Pod de Podman en espacio de usuario rootless llamado `mc-pod` que mapea:
+- **Built 100% in Rust + Tauri v2:**
+  - Instant startup speed, minimal RAM overhead, and native compiled execution.
+  - Completely eliminates Python virtual environment (`venv`) issues, `PyQt6` dependencies, and UI thread lockups.
+- **Multi-Language Support (i18n):**
+  - Seamless real-time language switcher supporting **English (default)**, **Spanish**, **French**, and **Portuguese**, with automatic fallback.
+- **Podman Anti-Desynchronization Engine:**
+  - **Mutex Serialization:** All state-mutating operations (`deploy`, `start`, `stop`, `restart`, `repair`) are sequentially queued through an asynchronous Rust actor (`tokio::sync::Mutex`), preventing Podman database and storage locks (`storage.db`).
+  - **Structured JSON Inspection:** Queries Podman container states directly using `--format json` with deep inspection of the infra-container, `mc-server`, `mc-playit`, and `mc-ssh`.
+  - **Automatic Reconciliation & Healing:** Detects when the primary Minecraft container has failed or when the pod enters a `Degraded` state, providing an automated 1-click healing routine to remove orphaned containers and cleanly resync the pod.
+- **Minecraft Version Control:**
+  - Connects directly to the official Mojang API (`piston-meta.mojang.com`) to dynamically fetch latest releases (1.21.4, 1.20.4, 1.19.2, etc.) and snapshots.
+- **Flexible Connectivity (Public IP vs Playit.gg):**
+  - **Public IP:** Automatic detection of Local LAN and Public Internet IP. Includes automatic UPnP port-forwarding probing and an interactive step-by-step router guide (TCP 25565, UDP 19132, TCP 2222).
+  - **Playit.gg Tunnels:** Integrated `mc-playit` agent container with `SECRET_KEY` support, allowing you to play with friends over the Internet without port forwarding or exposing your home IP.
+- **Multiple Server Engines:**
+  - **Official Vanilla:** Pure unmodified Mojang server.
+  - **Plugins:** Paper (Recommended), Purpur, or Spigot.
+  - **Mods:** Fabric, Forge, NeoForge, or Quilt.
+- **Built-in Java + Bedrock Crossplay:**
+  - Automated integration of GeyserMC, Floodgate, and SkinsRestorer, enabling console (Xbox, PlayStation, Nintendo Switch), mobile (iOS, Android), and Windows Bedrock players to play together with Java users.
+- **Remote SFTP / SSH Access:**
+  - Dedicated `mc-ssh` container mapped to `/servidor-mc` (`~/minecraft-server/data`) for uploading mods, worlds, datapacks, and plugins wirelessly from your main PC using FileZilla or WinSCP.
+- **Interactive Live RCON Console & Log Streaming:**
+  - Send live Minecraft commands (`op`, `whitelist`, `save-all`, `list`, `say`, etc.) with convenient touch-friendly quick action macros.
+- **OLED Anti-Burn-In Screensaver:**
+  - Built-in screensaver with pure black background (`#000000` to turn off OLED pixels on the Steam Deck OLED panel) and a DVD/CRT bouncing logo to keep your server running continuously without panel wear.
+
+---
+
+## 🏗 Container Architecture in Podman
+
+The application manages a single rootless user-space Pod named `mc-pod` mapping:
 - `25565:25565` (Minecraft Java Edition TCP)
 - `19132:19132/udp` (Minecraft Bedrock Edition UDP)
-- `2222:2222` (Acceso SFTP / SSH TCP)
+- `2222:2222` (SFTP / SSH Access TCP)
 
-### Contenedores dentro de `mc-pod`:
+### Containers inside `mc-pod`:
 1. **`mc-server` (`docker.io/itzg/minecraft-server:latest`):**
-   - Ejecuta el motor de Minecraft con `--user 0:0` y mapeo de volumen persistente en `~/minecraft-server/data:/data:Z`.
+   - Runs the Minecraft server engine with `--user 0:0` and persistent data volume at `~/minecraft-server/data:/data:Z`.
 2. **`mc-playit` (`ghcr.io/playit-cloud/playit-agent:latest`):**
-   - Agente oficial de túnel Playit.gg activado si se introduce la clave secreta o se elige el modo túnel.
+   - Official Playit.gg tunnel agent container activated when a secret key is provided or tunnel mode is selected.
 3. **`mc-ssh` (`lscr.io/linuxserver/openssh-server:latest`):**
-   - Servidor SFTP para gestión inalámbrica de archivos.
+   - SFTP server for remote wireless file management.
 
 ---
 
-## 🚀 Instalación en Steam Deck
+## 🚀 Installation on Steam Deck
 
-### Paso 1: Cambiar al Modo Escritorio
-1. Presiona el botón físico **STEAM** en tu Steam Deck.
-2. Ve a **Encendido/Apagar (Power)** -> **Cambiar al Modo Escritorio (Switch to Desktop)**.
+### Step 1: Switch to Desktop Mode
+1. Press the physical **STEAM** button on your Steam Deck.
+2. Go to **Power** -> **Switch to Desktop**.
 
-### Paso 2: Clonar y Ejecutar el Instalador
-Abre **Konsole** (la terminal de SteamOS) y ejecuta:
+### Step 2: Clone and Run Installer
+Open **Konsole** (SteamOS terminal) and run:
 
 ```bash
 git clone https://github.com/MOtaMore/mc_server-deck.git
@@ -66,20 +70,20 @@ chmod +x install.sh
 ./install.sh
 ```
 
-El script compilará el backend en Rust, el frontend web moderno y registrará el acceso directo en tu Escritorio (`~/Desktop/MC-Server-Deck.desktop`).
+The script will install the optimized pre-compiled Linux binary and create desktop shortcuts in both `~/Desktop/MC-Server-Deck.desktop` and your SteamOS application launcher.
 
 ---
 
-## 🎮 Añadir a Steam (Gaming Mode)
+## 🎮 Add to Steam (Gaming Mode)
 
-1. En el Modo Escritorio, abre la aplicación **Steam**.
-2. Haz clic en la barra superior en **Juegos (Games)** -> **Añadir un producto que no es de Steam a mi biblioteca...**.
-3. Selecciona **MC Server-Deck** (o navega hasta `~/.local/share/mc-server-deck/mc-server-deck`).
-4. Haz clic en **Añadir seleccionados**.
-5. Regresa al **Modo Juego (Gaming Mode)**. ¡Encontrarás la app lista para usar con pantalla táctil a 1280x800!
+1. In Desktop Mode, open the **Steam** desktop client.
+2. In the top menu, click **Games** -> **Add a Non-Steam Game to My Library...**.
+3. Select **MC Server-Deck** (or browse to `~/.local/share/mc-server-deck/mc-server-deck`).
+4. Click **Add Selected Programs**.
+5. Switch back to **Gaming Mode**. The application is ready to launch with full 1280x800 touch screen and controller support!
 
 ---
 
-## 📄 Licencia
+## 📄 License
 
-Este proyecto está bajo la Licencia MIT. Consulta el archivo [LICENSE](LICENSE) para más detalles.
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
