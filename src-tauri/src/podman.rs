@@ -44,6 +44,7 @@ impl PodmanEngine {
     /// Comprueba si podman está disponible en PATH
     pub async fn is_podman_available(&self) -> bool {
         let output = Command::new("podman")
+            .env_remove("LD_PRELOAD")
             .arg("--version")
             .output()
             .await;
@@ -53,6 +54,7 @@ impl PodmanEngine {
     /// Ejecuta un comando podman capturando stdout y stderr
     pub async fn run_podman(&self, args: &[&str]) -> (bool, String) {
         let mut cmd = Command::new("podman");
+        cmd.env_remove("LD_PRELOAD");
         cmd.args(args);
         cmd.stdout(Stdio::piped());
         cmd.stderr(Stdio::piped());
@@ -61,10 +63,20 @@ impl PodmanEngine {
             Ok(output) => {
                 let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
                 let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+                
+                // Filtrar avisos inofensivos de ld.so / Steam overlay en Modo Juego (Game Mode)
+                let clean_stderr = stderr
+                    .lines()
+                    .filter(|l| !l.contains("gameoverlayrenderer.so") && !l.contains("wrong ELF class"))
+                    .collect::<Vec<_>>()
+                    .join("\n")
+                    .trim()
+                    .to_string();
+
                 if output.status.success() {
-                    (true, if stdout.is_empty() { stderr } else { stdout })
+                    (true, if stdout.is_empty() { clean_stderr } else { stdout })
                 } else {
-                    let err = if !stderr.is_empty() { stderr } else { stdout };
+                    let err = if !clean_stderr.is_empty() { clean_stderr } else { stdout };
                     (false, err)
                 }
             }
@@ -239,7 +251,7 @@ impl PodmanEngine {
             "-e", &motd_env,
             "-e", &diff_env,
             "-e", &maxp_env,
-            "-e", "-e", rcon_en_env,
+            "-e", rcon_en_env,
             "-e", rcon_p_env,
             "-e", rcon_pwd_env,
         ]);
