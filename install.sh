@@ -39,8 +39,29 @@ fi
 PODMAN_VER=$(podman --version)
 echo -e "${GREEN}✔ Podman detectado:${NC} $PODMAN_VER"
 
-# 2. Verificar Binario de la Aplicación
-echo -e "${YELLOW}[2/4] Verificando binario ejecutable...${NC}"
+# 2. Verificar dependencias de sistema (WebKitGTK 4.1 para Tauri)
+echo -e "${YELLOW}[2/5] Verificando librería gráfica WebKitGTK...${NC}"
+if ! ldconfig -p 2>/dev/null | grep -q "libwebkit2gtk-4.1.so.0" && [ ! -f "/usr/lib/libwebkit2gtk-4.1.so.0" ]; then
+    echo -e "${YELLOW}SteamOS no incluye la librería 'webkit2gtk-4.1' en su imagen básica.${NC}"
+    echo -e "Es necesaria para renderizar la interfaz gráfica de la aplicación."
+    read -p "¿Deseas instalar 'webkit2gtk-4.1' ahora con pacman (requiere sudo)? (S/n): " ans
+    if [[ "$ans" =~ ^([sS]|)$ ]]; then
+        echo -e "${CYAN}Desbloqueando sistema de archivos e instalando webkit2gtk-4.1...${NC}"
+        sudo steamos-readonly disable
+        sudo pacman-key --init
+        sudo pacman-key --populate archlinux holo
+        sudo pacman -Sy --noconfirm webkit2gtk-4.1
+        sudo steamos-readonly enable
+        echo -e "${GREEN}✔ webkit2gtk-4.1 instalado correctamente.${NC}"
+    else
+        echo -e "${RED}Advertencia: la aplicación no podrá abrir la ventana sin webkit2gtk-4.1.${NC}"
+    fi
+else
+    echo -e "${GREEN}✔ webkit2gtk-4.1 detectado en el sistema.${NC}"
+fi
+
+# 3. Verificar Binario de la Aplicación
+echo -e "${YELLOW}[3/5] Verificando binario ejecutable...${NC}"
 
 INSTALLED=false
 
@@ -108,13 +129,13 @@ if [ "$INSTALLED" = false ]; then
     cp "src-tauri/target/release/mc-server-deck" "$INSTALL_DIR/mc-server-deck"
 fi
 
-# 3. Permisos y recursos
-echo -e "${YELLOW}[3/4] Configurando archivos y permisos...${NC}"
+# 4. Permisos y recursos
+echo -e "${YELLOW}[4/5] Configurando archivos y permisos...${NC}"
 chmod +x "$INSTALL_DIR/mc-server-deck"
 cp assets/icon.png "$INSTALL_DIR/assets/icon.png"
 
-# 4. Crear accesos directos
-echo -e "${YELLOW}[4/4] Creando accesos directos de SteamOS...${NC}"
+# 5. Crear accesos directos
+echo -e "${YELLOW}[5/5] Creando accesos directos de SteamOS...${NC}"
 DESKTOP_ENTRY="[Desktop Entry]
 Name=MC Server-Deck
 Comment=Servidor de Minecraft nativo en Podman para Steam Deck
