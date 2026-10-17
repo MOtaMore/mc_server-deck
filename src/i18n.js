@@ -60,6 +60,8 @@ export const translations = {
     "macros.players": "👥 View Players",
     "macros.op": "⭐ Make OP",
     "macros.whitelist": "📋 Whitelist",
+    "macros.whitelist_java": "📋 Whitelist Java",
+    "macros.whitelist_bedrock": "🎮 Whitelist Bedrock (Floodgate)",
     "macros.weather": "☀️ Clear Weather",
 
     // Terminal / Console
@@ -172,6 +174,10 @@ export const translations = {
     "dialog.op_prompt": "Minecraft player username:",
     "dialog.whitelist_title": "Add to Whitelist",
     "dialog.whitelist_prompt": "Username to authorize:",
+    "dialog.whitelist_java_title": "Add to Java Whitelist",
+    "dialog.whitelist_java_prompt": "Minecraft Java player username (runs 'whitelist add <username>'):",
+    "dialog.whitelist_bedrock_title": "Add to Bedrock Whitelist (Floodgate)",
+    "dialog.whitelist_bedrock_prompt": "Bedrock Gamertag or Floodgate UUID (Tip: If player never joined before, turn off whitelist temporarily with 'whitelist off' so they connect once, or enter their Floodgate UUID):",
     "screensaver.hint": "Tap any button or touch the screen to return to the panel",
 
     // Toast Notifications
@@ -252,6 +258,8 @@ export const translations = {
     "macros.players": "👥 Ver Jugadores",
     "macros.op": "⭐ Hacer OP",
     "macros.whitelist": "📋 Whitelist",
+    "macros.whitelist_java": "📋 Whitelist Java",
+    "macros.whitelist_bedrock": "🎮 Whitelist Bedrock (Floodgate)",
     "macros.weather": "☀️ Despejar Clima",
 
     // Terminal / Console
@@ -364,6 +372,10 @@ export const translations = {
     "dialog.op_prompt": "Nombre de usuario del jugador de Minecraft:",
     "dialog.whitelist_title": "Agregar a Whitelist",
     "dialog.whitelist_prompt": "Nombre de usuario a autorizar:",
+    "dialog.whitelist_java_title": "Agregar a Whitelist (Java)",
+    "dialog.whitelist_java_prompt": "Nombre de usuario Java (ejecuta 'whitelist add <usuario>'):",
+    "dialog.whitelist_bedrock_title": "Agregar a Whitelist Bedrock (Floodgate)",
+    "dialog.whitelist_bedrock_prompt": "Gamertag de Bedrock/Xbox o UUID de Floodgate (Consejo: Si nunca ha entrado a tu servidor, desactiva la whitelist un momento con 'whitelist off' para que entre una vez, o usa su UUID de Floodgate):",
     "screensaver.hint": "Toca cualquier botón o la pantalla táctil para volver al panel",
 
     // Toast Notifications
@@ -444,6 +456,8 @@ export const translations = {
     "macros.players": "👥 Voir Joueurs",
     "macros.op": "⭐ Donner OP",
     "macros.whitelist": "📋 Liste Blanche",
+    "macros.whitelist_java": "📋 Liste Blanche Java",
+    "macros.whitelist_bedrock": "🎮 Liste Blanche Bedrock (Floodgate)",
     "macros.weather": "☀️ Météo Dégagée",
 
     // Terminal / Console
@@ -556,6 +570,10 @@ export const translations = {
     "dialog.op_prompt": "Nom d'utilisateur du joueur Minecraft :",
     "dialog.whitelist_title": "Ajouter à la Liste Blanche",
     "dialog.whitelist_prompt": "Nom d'utilisateur à autoriser :",
+    "dialog.whitelist_java_title": "Ajouter à la Liste Blanche Java",
+    "dialog.whitelist_java_prompt": "Nom d'utilisateur Java (exécute 'whitelist add <joueur>') :",
+    "dialog.whitelist_bedrock_title": "Ajouter à la Liste Blanche Bedrock (Floodgate)",
+    "dialog.whitelist_bedrock_prompt": "Gamertag Bedrock ou UUID Floodgate (Astuce : Si le joueur n'a jamais rejoint votre serveur, désactivez temporairement la liste blanche avec 'whitelist off' pour qu'il se connecte une fois, ou entrez son UUID Floodgate) :",
     "screensaver.hint": "Touchez n'importe quel bouton ou l'écran pour revenir au panneau",
 
     // Toast Notifications
@@ -636,6 +654,8 @@ export const translations = {
     "macros.players": "👥 Ver Jogadores",
     "macros.op": "⭐ Tornar OP",
     "macros.whitelist": "📋 Whitelist",
+    "macros.whitelist_java": "📋 Whitelist Java",
+    "macros.whitelist_bedrock": "🎮 Whitelist Bedrock (Floodgate)",
     "macros.weather": "☀️ Limpar Clima",
 
     // Terminal / Console
@@ -748,6 +768,10 @@ export const translations = {
     "dialog.op_prompt": "Nome de usuário do jogador de Minecraft:",
     "dialog.whitelist_title": "Adicionar à Whitelist",
     "dialog.whitelist_prompt": "Nome de usuário a autorizar:",
+    "dialog.whitelist_java_title": "Adicionar à Whitelist Java",
+    "dialog.whitelist_java_prompt": "Nome de usuário Java (executa 'whitelist add <usuário>'):",
+    "dialog.whitelist_bedrock_title": "Adicionar à Whitelist Bedrock (Floodgate)",
+    "dialog.whitelist_bedrock_prompt": "Gamertag Bedrock/Xbox ou UUID do Floodgate (Dica: Se o jogador nunca entrou no seu servidor, desative temporariamente a whitelist com 'whitelist off' para ele conectar uma vez, ou digite o UUID do Floodgate):",
     "screensaver.hint": "Toque em qualquer botão ou na tela para voltar ao painel",
 
     // Toast Notifications

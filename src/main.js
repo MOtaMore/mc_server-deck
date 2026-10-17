@@ -370,9 +370,16 @@ document.querySelectorAll(".btn-chip").forEach(chip => {
       openTouchDialog(t("dialog.op_title"), t("dialog.op_prompt"), (user) => {
         if (user) sendRcon(`op ${user}`);
       });
-    } else if (macro === "whitelist") {
-      openTouchDialog(t("dialog.whitelist_title"), t("dialog.whitelist_prompt"), (user) => {
+    } else if (macro === "whitelist_java" || macro === "whitelist") {
+      openTouchDialog(t("dialog.whitelist_java_title"), t("dialog.whitelist_java_prompt"), (user) => {
         if (user) sendRcon(`whitelist add ${user}`);
+      });
+    } else if (macro === "whitelist_bedrock") {
+      openTouchDialog(t("dialog.whitelist_bedrock_title"), t("dialog.whitelist_bedrock_prompt"), (user) => {
+        if (user) {
+          const formattedUser = (user.includes(" ") && !user.startsWith('"')) ? `"${user}"` : user;
+          sendRcon(`fwhitelist add ${formattedUser}`);
+        }
       });
     }
   });

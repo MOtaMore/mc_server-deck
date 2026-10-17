@@ -100,7 +100,15 @@ impl PodmanEngine {
         }
 
         // Consultar estado de mc-pod vía JSON estructurado
-        let (success, out) = self.run_podman(&["pod", "inspect", "mc-pod", "--format", "json"]).await;
+        let (mut success, mut out) = self.run_podman(&["pod", "inspect", "mc-pod", "--format", "json"]).await;
+
+        // Auto-recuperación si SteamOS suspendió procesos conmon/pause
+        if !success && (out.contains("system migrate") || out.contains("no such process") || out.contains("invalid internal status")) {
+            let _ = self.run_podman(&["system", "migrate"]).await;
+            let (retry_ok, retry_out) = self.run_podman(&["pod", "inspect", "mc-pod", "--format", "json"]).await;
+            success = retry_ok;
+            out = retry_out;
+        }
 
         if !success {
             return PodStatus {
@@ -182,6 +190,9 @@ impl PodmanEngine {
         if !self.is_podman_available().await {
             return Err("Podman no está disponible en este sistema.".to_string());
         }
+
+        // Ejecutar migración preventiva para sanar el estado de Podman si la consola se suspendió o reinició
+        let _ = self.run_podman(&["system", "migrate"]).await;
 
         let data_path = self.data_dir.to_string_lossy().to_string();
         let ssh_config_path = self.ssh_config_dir.to_string_lossy().to_string();
@@ -332,7 +343,23 @@ impl PodmanEngine {
     /// Inicia el pod existente
     pub async fn start_pod(&self) -> Result<String, String> {
         let _guard = self.operation_lock.lock().await;
-        let (ok, out) = self.run_podman(&["pod", "start", "mc-pod"]).await;
+        let (mut ok, mut out) = self.run_podman(&["pod", "start", "mc-pod"]).await;
+
+        // Auto-heal si el proceso pause de Podman quedó huérfano tras suspensión o reinicio de SteamOS
+        if !ok && (out.contains("system migrate") || out.contains("no such process") || out.contains("invalid internal status")) {
+            let _ = self.run_podman(&["system", "migrate"]).await;
+            let (retry_ok, retry_out) = self.run_podman(&["pod", "start", "mc-pod"]).await;
+            ok = retry_ok;
+            out = retry_out;
+        }
+
+        // Si el pod no existe aún, desplegarlo automáticamente usando la configuración guardada
+        if !ok && (out.contains("no such pod") || out.contains("no pod with name") || out.contains("not found")) {
+            let config = self.load_config();
+            drop(_guard);
+            return self.deploy_server(config).await;
+        }
+
         if ok {
             Ok("Pod iniciado exitosamente.".to_string())
         } else {
@@ -343,7 +370,15 @@ impl PodmanEngine {
     /// Detiene el pod de forma limpia y segura
     pub async fn stop_pod(&self) -> Result<String, String> {
         let _guard = self.operation_lock.lock().await;
-        let (ok, out) = self.run_podman(&["pod", "stop", "-t", "15", "mc-pod"]).await;
+        let (mut ok, mut out) = self.run_podman(&["pod", "stop", "-t", "15", "mc-pod"]).await;
+
+        if !ok && (out.contains("system migrate") || out.contains("no such process") || out.contains("invalid internal status")) {
+            let _ = self.run_podman(&["system", "migrate"]).await;
+            let (retry_ok, retry_out) = self.run_podman(&["pod", "stop", "-t", "15", "mc-pod"]).await;
+            ok = retry_ok;
+            out = retry_out;
+        }
+
         if ok {
             Ok("Pod detenido de forma segura.".to_string())
         } else {
@@ -355,7 +390,15 @@ impl PodmanEngine {
     pub async fn restart_pod(&self) -> Result<String, String> {
         let _guard = self.operation_lock.lock().await;
         let _ = self.run_podman(&["pod", "stop", "-t", "10", "mc-pod"]).await;
-        let (ok, out) = self.run_podman(&["pod", "start", "mc-pod"]).await;
+        let (mut ok, mut out) = self.run_podman(&["pod", "start", "mc-pod"]).await;
+
+        if !ok && (out.contains("system migrate") || out.contains("no such process") || out.contains("invalid internal status")) {
+            let _ = self.run_podman(&["system", "migrate"]).await;
+            let (retry_ok, retry_out) = self.run_podman(&["pod", "start", "mc-pod"]).await;
+            ok = retry_ok;
+            out = retry_out;
+        }
+
         if ok {
             Ok("Pod reiniciado exitosamente.".to_string())
         } else {
@@ -367,6 +410,9 @@ impl PodmanEngine {
     /// Limpia contenedores bloqueados o corruptos, resetea locks y vuelve a sincronizar el pod
     pub async fn repair_and_reconcile(&self) -> Result<String, String> {
         let _guard = self.operation_lock.lock().await;
+
+        // 0. Ejecutar migración del sistema para sanar procesos pause huérfanos y estados inconsistentes
+        let _ = self.run_podman(&["system", "migrate"]).await;
 
         // 1. Detener forzosamente contenedores
         let _ = self.run_podman(&["stop", "-t", "5", "mc-server", "mc-playit", "mc-ssh"]).await;
